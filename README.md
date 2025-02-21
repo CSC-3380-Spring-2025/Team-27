@@ -1,10 +1,10 @@
-# [Name of the Project] : [Team Number]
+# [Horror Game] : [Team 27]
 # Members
-Project Manager: [Name] ([GitHub Name])\
-Communications Lead: [Name] ([GitHub Name])\
-Git Master: [Name] ([GitHub Name])\
-Design Lead: [Name] ([GitHub Name])\
-Quality Assurance Tester: [Name] ([GitHub Name])
+Project Manager: Carter Mauer (cmauer2)\
+Communications Lead: Cliff Ricks (Cwiffy)\
+Git Master: Nguyen Vu (NguyenVu2005)\
+Design Lead: Mason Antee (mas0nn)\
+Quality Assurance Tester: Malachi Fowler (MalachiF18)
 
 # About Our Software
 
@@ -16,7 +16,7 @@ Describe a little about what the project is about here.
 - Linux
 - Windows
 # Important Links
-Kanban Board: [link]\
+Kanban Board: https://github.com/orgs/CSC-3380-Spring-2025/projects/7/views/1\
 Designs: [link]\
 Styles Guide(s): [link]
 
