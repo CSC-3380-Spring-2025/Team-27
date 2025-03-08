@@ -16,7 +16,7 @@ Key Features:
 - Single Repeating Room: The game takes place in a single, repeating room, where each progression is marked by subtle changes and psychological twists.
 - Psychological Horror & Puzzles: Players must solve puzzles and uncover clues to advance through the game, each step revealing new layers to the mystery.
 
-The project is built as a client-side desktop application using Unreal Engine 2.
+The project is built as a client-side desktop application using Unreal Engine 5.
 
 ## Platforms Tested on
 - MacOS
