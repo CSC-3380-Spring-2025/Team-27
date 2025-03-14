@@ -22,7 +22,13 @@ Afirst_Person_Character::Afirst_Person_Character()
 	//sets walk speed and multiplier for speed, once the player clicks shiff, the walk speed is multiplied by this
 
 	DefaultMaxWalkingSpeed = 275.0f;
-	SprintSpeedMultiplier = 1.35f;
+	SprintSpeedMultiplier = 2.0f;
+
+	//Initialize stamina
+	MaxStamina = 100.0f;
+	CurrentStamina = MaxStamina;
+	StaminaDrainRate = 20.0f;
+	StaminaRegenRate = 10.0f;
 }
 
 // Called when the game starts or when spawned
@@ -38,6 +44,26 @@ void Afirst_Person_Character::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
+	if (bIsSprinting)
+	{
+		CurrentStamina -= StaminaDrainRate * DeltaTime;
+		if (CurrentStamina <= 0)
+		{
+			CurrentStamina = 0;
+			StopSprint(); //stop sprinting when stamina runs out
+		}
+	}
+	else
+	{
+		if (CurrentStamina < MaxStamina)
+		{
+			CurrentStamina += StaminaRegenRate * DeltaTime;
+			if (CurrentStamina > MaxStamina)
+			{
+				CurrentStamina = MaxStamina;
+			}
+		}
+	}
 }
 
 // Called to bind functionality to input
@@ -77,8 +103,11 @@ void Afirst_Person_Character::Vertic_Move(float value)
 
 void Afirst_Person_Character::StartSprint()
 {
-	bIsSprinting = true;
-	GetCharacterMovement()->MaxWalkSpeed = DefaultMaxWalkingSpeed * SprintSpeedMultiplier;
+	if (CurrentStamina > 0) //only sprint when player has stamina
+	{
+		bIsSprinting = true;
+		GetCharacterMovement()->MaxWalkSpeed = DefaultMaxWalkingSpeed * SprintSpeedMultiplier;
+	}
 }
 
 void Afirst_Person_Character::StopSprint()

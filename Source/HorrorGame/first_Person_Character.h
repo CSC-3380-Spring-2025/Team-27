@@ -42,8 +42,28 @@ private:
 
 	bool bIsSprinting = false;
 
+	//Stamina Properties
+
+	UPROPERTY(EditAnywhere, Category = "Stamina")
+	float MaxStamina = 100.0f;
+
+	UPROPERTY(VisibleAnywhere, Category = "Stamina")
+	float CurrentStamina;
+
+	UPROPERTY(EditAnywhere, Category = "Stamina")
+	float StaminaDrainRate = 20.0f;
+
+	UPROPERTY(EditAnywhere, Category = "Stamina")
+	float StaminaRegenRate = 10.0f;
+
+	bool bCanSprint = true;
+
+	//SprintFunctions
 	void StartSprint();
 	void StopSprint();
+
+	//Stamina Handling
+	void RegenerateStamina(float DeltaTime);
 	
 	//Move Left-Right
 	void Horizon_Move(float value);
