@@ -34,9 +34,27 @@ private:
 	UPROPERTY(EditAnywhere, Category = "Camera")
 		UCameraComponent* cam; 
 
+	UPROPERTY(EditAnywhere, Category = "Movement")
+		float DefaultMaxWalkingSpeed;  // Default walking speed
+
+	UPROPERTY(EditAnywhere, Category = "Movement")
+		float SprintSpeedMultiplier;     // Sprinting multiplier
+
+	bool bIsSprinting = false;
+
+	void StartSprint();
+	void StopSprint();
+	
+	//Move Left-Right
 	void Horizon_Move(float value);
+
+	//Move Forward-Backward
 	void Vertic_Move(float value);
+
+	//Look Left-Right
 	void Horizon_Rot(float value);
+
+	//Look Up-Down
 	void Vertic_Rot(float value); 
 
 };
