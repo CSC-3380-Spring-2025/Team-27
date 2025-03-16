@@ -11,7 +11,7 @@
 UCLASS()
 class HORRORGAME_API Afirst_Person_Character : public ACharacter
 {
-    GENERATED_BODY()
+        GENERATED_BODY()
 
 public:
     Afirst_Person_Character();
@@ -67,3 +67,4 @@ private:
     void Vertic_Rot(float value);
     void BeginCrouch();
     void EndCrouch();
+};
