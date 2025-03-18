@@ -56,8 +56,10 @@ private:
 
     UPROPERTY(EditAnywhere, Category = "Stamina")
     float StaminaRegenRate;
-
     bool bIsSprinting;
+
+    UPROPERTY(EditAnywhere, Category = "Interaction")
+    float InteractionDistance = 200.0f;
 
     void StartSprint();
     void StopSprint();
@@ -67,4 +69,5 @@ private:
     void Vertic_Rot(float value);
     void BeginCrouch();
     void EndCrouch();
+    void InteractWithDoor();
 };
