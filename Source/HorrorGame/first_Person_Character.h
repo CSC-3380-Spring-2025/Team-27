@@ -8,35 +8,63 @@
 #include "Camera/CameraComponent.h"
 #include "first_Person_Character.generated.h"
 
-
 UCLASS()
 class HORRORGAME_API Afirst_Person_Character : public ACharacter
 {
-	GENERATED_BODY()
+        GENERATED_BODY()
 
 public:
-	// Sets default values for this character's properties
-	Afirst_Person_Character();
+    Afirst_Person_Character();
 
 protected:
-	// Called when the game starts or when spawned
-	virtual void BeginPlay() override;
+    virtual void BeginPlay() override;
 
-public:	
-	// Called every frame
-	virtual void Tick(float DeltaTime) override;
+public:
+    virtual void Tick(float DeltaTime) override;
+    virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 
-	// Called to bind functionality to input
-	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
+private:
+    UPROPERTY(EditAnywhere, Category = "Camera")
+    UCameraComponent* cam;
 
-private: 
+    UPROPERTY(EditAnywhere, Category = "Movement")
+    float DefaultMaxWalkingSpeed;
 
-	UPROPERTY(EditAnywhere, Category = "Camera")
-		UCameraComponent* cam; 
+    UPROPERTY(EditAnywhere, Category = "Movement")
+    float SprintSpeedMultiplier;
 
-	void Horizon_Move(float value);
-	void Vertic_Move(float value);
-	void Horizon_Rot(float value);
-	void Vertic_Rot(float value); 
+    UPROPERTY(EditAnywhere, Category = "Movement")
+    float CrouchSpeed;
 
+    UPROPERTY(EditAnywhere, Category = "Crouching")
+    float StandingCapsuleHalfHeight;
+
+    UPROPERTY(EditAnywhere, Category = "Crouching")
+    float CrouchingCapsuleHalfHeight;
+
+    UPROPERTY(VisibleAnywhere, Category = "Crouching")
+    bool bIsCrouching;
+
+    UPROPERTY(EditAnywhere, Category = "Stamina")
+    float MaxStamina;
+
+    UPROPERTY(VisibleAnywhere, Category = "Stamina")
+    float CurrentStamina;
+
+    UPROPERTY(EditAnywhere, Category = "Stamina")
+    float StaminaDrainRate;
+
+    UPROPERTY(EditAnywhere, Category = "Stamina")
+    float StaminaRegenRate;
+
+    bool bIsSprinting;
+
+    void StartSprint();
+    void StopSprint();
+    void Horizon_Move(float value);
+    void Vertic_Move(float value);
+    void Horizon_Rot(float value);
+    void Vertic_Rot(float value);
+    void BeginCrouch();
+    void EndCrouch();
 };
