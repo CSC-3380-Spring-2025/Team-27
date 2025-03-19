@@ -1,6 +1,7 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 #include "first_Person_Character.h"
+#include "DoorTeleport.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Components/CapsuleComponent.h"
 
@@ -79,6 +80,8 @@ void Afirst_Person_Character::SetupPlayerInputComponent(UInputComponent* PlayerI
 
     InputComponent->BindAction("Crouch", IE_Pressed, this, &Afirst_Person_Character::BeginCrouch);
     InputComponent->BindAction("Crouch", IE_Released, this, &Afirst_Person_Character::EndCrouch);
+
+    InputComponent->BindAction("Interact", IE_Pressed, this, &Afirst_Person_Character::InteractWithDoor);
 }
 
 void Afirst_Person_Character::Horizon_Move(float value)
@@ -145,4 +148,31 @@ void Afirst_Person_Character::EndCrouch()
     bIsCrouching = false;
     GetCapsuleComponent()->SetCapsuleHalfHeight(StandingCapsuleHalfHeight);
     GetCharacterMovement()->MaxWalkSpeed = DefaultMaxWalkingSpeed;
+}
+
+void Afirst_Person_Character::InteractWithDoor()
+{
+    FHitResult HitResult;
+    FVector StartLocation = cam->GetComponentLocation();
+    FVector EndLocation = StartLocation + (cam->GetForwardVector() * InteractionDistance);
+
+    FCollisionQueryParams QueryParams;
+    QueryParams.AddIgnoredActor(this);
+
+    bool bHit = GetWorld()->LineTraceSingleByChannel(
+        HitResult,
+        StartLocation,
+        EndLocation,
+        ECC_Visibility,
+        QueryParams
+    );
+
+    if (bHit)
+    {
+        ADoorTeleport* Door = Cast<ADoorTeleport>(HitResult.GetActor());
+        if (Door)
+        {
+            Door->Interact(this);
+        }
+    }
 }
