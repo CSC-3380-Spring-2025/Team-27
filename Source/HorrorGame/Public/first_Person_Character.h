@@ -6,6 +6,8 @@
 #include "GameFramework/Character.h"
 #include "Components/InputComponent.h"
 #include "Camera/CameraComponent.h"
+#include "Components/PostProcessComponent.h"
+#include "Blueprint/UserWidget.h"
 #include "interaction_System.h"
 #include "first_Person_Character.generated.h"
 
@@ -30,14 +32,54 @@ private:
     UPROPERTY(EditAnywhere, Category = "Camera")
     UCameraComponent* cam;
 
+    UPROPERTY(EditAnywhere, Category = "Camera")
+    float DefaultFOV; // default FOV for walking
+
+    UPROPERTY(EditAnywhere, Category = "Camera")
+    float SprintingFOV; // slightly wider FOV when sprinting
+
+    UPROPERTY(EditAnywhere, Category = "Camera")
+    float CrouchFOV; // FOV when crouching
+
+    UPROPERTY(EditAnywhere, Category = "Camera")
+    float FOVTransitionSpeed;
+
+    UPROPERTY(EditAnywhere, Category = "UI")
+    TSubclassOf<UUserWidget> WB_CrosshairClass;
+
+    UPROPERTY()
+    UUserWidget* CrosshairWidget;
+
+    UPROPERTY(VisibleAnywhere, Category = "PostProcessing")
+    UPostProcessComponent* PostProcessComponent;
+
     UPROPERTY(EditAnywhere, Category = "Movement")
     float DefaultMaxWalkingSpeed;
 
     UPROPERTY(EditAnywhere, Category = "Movement")
     float SprintSpeedMultiplier;
+    bool bIsSprinting;
 
     UPROPERTY(EditAnywhere, Category = "Movement")
     float CrouchSpeed;
+
+    UPROPERTY(EditAnywhere, Category = "HeadBobbing")
+    bool bEnableHeadBobbing = true; // toggle head bobbing on/off
+
+    UPROPERTY(EditAnywhere, Category = "HeadBobbing")
+    float BobbingSpeed = 10.0f; // speed of the bobbing effect
+
+    UPROPERTY(EditAnywhere, Category = "HeadBobbing")
+    float BobbingAmount = 2.5f; // intensity of the bobbing effect
+
+    UPROPERTY(EditAnywhere, Category = "HeadBobbing")
+    float CrouchBobbingMultiplier = 0.5f; // reduce bobbing when crouching
+
+    UPROPERTY(VisibleAnywhere, Category = "HeadBobbing")
+    float BobbingTime; // internal timer for bobbing calculation
+
+    UPROPERTY(VisibleAnywhere, Category = "HeadBobbing")
+    FVector DefaultCameraPosition; // stores the default camera position
 
     UPROPERTY(EditAnywhere, Category = "Crouching")
     float StandingCapsuleHalfHeight;
@@ -59,10 +101,20 @@ private:
 
     UPROPERTY(EditAnywhere, Category = "Stamina")
     float StaminaRegenRate;
-    bool bIsSprinting;
+
+    UPROPERTY(VisibleAnywhere, Category = "Stamina")
+    bool bIsExhausted = false; //prevents sprinting immediately after running out of stamina
+
+    UPROPERTY(EditAnywhere, Category = "Stamina")
+    float ExhaustionRecoveryTime = 2.0f; //time before player can sprint again
+    FTimerHandle ExhaustionTimerHandle;
+    void ResetExhaustion(); //function to reset exhaustion state
 
     UPROPERTY(EditAnywhere, Category = "Interaction")
     float InteractionDistance = 200.0f;
+
+    void ApplyStaminaExhaustionEffects();
+    void ApplyHeadBobbing(float DeltaTime);
 
     void StartSprint();
     void StopSprint();
@@ -72,6 +124,15 @@ private:
     void Vertic_Rot(float value);
     void BeginCrouch();
     void EndCrouch();
+    void SmoothCrouchTransition();
+
+    FTimerHandle CrouchTimerHandle;
+    bool bIsCrouchingInProgress;
+    float CurrentCrouchTime;
+    float MaxCrouchTransitionTime;
+    float InitialCapsuleHeight;
+    float TargetCapsuleHeight;
+
     void InteractWithDoor();
 
     Ainteraction_System* Interaction_System;

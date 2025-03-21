@@ -14,6 +14,20 @@ void Ainteraction_System::Init(UDataTable* DataTable)
 {
 	Interaction_Data_Table = DataTable;
 
+    //check if datatable is valid
+    if (!Interaction_Data_Table)
+    {
+        UE_LOG(LogTemp, Error, TEXT("Interaction_Data_Table is null!"));
+        return; //exit function if datatable is not valid
+    }
+
+    //check if datatable is empty
+    if (Interaction_Data_Table->GetRowMap().Num() == 0)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("Interaction_Data_Table is empty! No interactions available."));
+        return; //exit function if datatable is empty
+    }
+
 	Interaction_System.Add(FName(TEXT("PickupObject")), &Ainteraction_System::Pickup_Object);
 	Interaction_System.Add(FName(TEXT("OpenDoor")), &Ainteraction_System::Open_Door);
 	Interaction_System.Add(FName(TEXT("ViewNote")), &Ainteraction_System::View_Note);
