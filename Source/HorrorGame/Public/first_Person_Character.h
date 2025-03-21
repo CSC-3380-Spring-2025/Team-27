@@ -24,6 +24,7 @@ public:
     virtual void Tick(float DeltaTime) override;
     virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
    
+    void Interact();
 
 private:
     UPROPERTY(EditAnywhere, Category = "Camera")
@@ -72,7 +73,6 @@ private:
     void BeginCrouch();
     void EndCrouch();
     void InteractWithDoor();
-    void Interact();
 
     Ainteraction_System* Interaction_System;
 };

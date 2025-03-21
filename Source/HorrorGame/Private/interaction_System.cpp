@@ -1,6 +1,5 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
-
 #include "interaction_System.h"
 #include "Engine/World.h"
 #include "first_Person_Character.h"
@@ -63,6 +62,21 @@ void Ainteraction_System::Perform_Interaction(const FName Interactable_Function,
     {
         (this->*Interaction_System[Interactable_Function])(Character);
     }
+}
+
+void Ainteraction_System::Pickup_Object(Afirst_Person_Character* Character)
+{
+    UE_LOG(LogTemp, Log, TEXT("Picked up an object!"));
+}
+
+void Ainteraction_System::Open_Door(Afirst_Person_Character* Character)
+{
+    UE_LOG(LogTemp, Log, TEXT("Opened a door!"));
+}
+
+void Ainteraction_System::View_Note(Afirst_Person_Character* Character)
+{
+    UE_LOG(LogTemp, Log, TEXT("Viewed a note!"));
 }
 
 

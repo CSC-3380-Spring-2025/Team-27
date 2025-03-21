@@ -22,7 +22,7 @@ public:
 	void Interact(Afirst_Person_Character* Character);
 
 private:
-    void Perform_Interaction(const FName Interaction_Function, Afirst_Person_Character* Character);
+    void Perform_Interaction(const FName Interactable_Function, Afirst_Person_Character* Character);
     void Pickup_Object(Afirst_Person_Character* Character);
     void Open_Door(Afirst_Person_Character* Character);
 	void View_Note(Afirst_Person_Character* Character);

@@ -2,6 +2,7 @@
 
 #include "first_Person_Character.h"
 #include "DoorTeleport.h"
+#include "interaction_System.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Components/CapsuleComponent.h"
 
@@ -38,6 +39,12 @@ void Afirst_Person_Character::BeginPlay()
     Super::BeginPlay();
     GetCharacterMovement()->MaxWalkSpeed = DefaultMaxWalkingSpeed;
     GetCapsuleComponent()->SetCapsuleHalfHeight(StandingCapsuleHalfHeight);
+
+    UDataTable* Interaction_Data_Table = LoadObject<UDataTable>(nullptr, TEXT("/Script/Engine.DataTable'/Game/InteractableDataTable.InteractableDataTable'"));
+    if (Interaction_Data_Table)
+    {
+        Interaction_System->Init(Interaction_Data_Table);
+    }
 }
 
 void Afirst_Person_Character::Tick(float DeltaTime)
@@ -80,7 +87,8 @@ void Afirst_Person_Character::SetupPlayerInputComponent(UInputComponent* PlayerI
 
     InputComponent->BindAction("Crouch", IE_Pressed, this, &Afirst_Person_Character::BeginCrouch);
     InputComponent->BindAction("Crouch", IE_Released, this, &Afirst_Person_Character::EndCrouch);
-
+    
+    InputComponent->BindAction("InteractTest", IE_Pressed, this, &Afirst_Person_Character::Interact);
     InputComponent->BindAction("Interact", IE_Pressed, this, &Afirst_Person_Character::InteractWithDoor);
 }
 
@@ -148,6 +156,14 @@ void Afirst_Person_Character::EndCrouch()
     bIsCrouching = false;
     GetCapsuleComponent()->SetCapsuleHalfHeight(StandingCapsuleHalfHeight);
     GetCharacterMovement()->MaxWalkSpeed = DefaultMaxWalkingSpeed;
+}
+
+void Afirst_Person_Character::Interact()
+{
+    if (Interaction_System)
+    {
+        Interaction_System->Interact(this);
+    }
 }
 
 void Afirst_Person_Character::InteractWithDoor()
