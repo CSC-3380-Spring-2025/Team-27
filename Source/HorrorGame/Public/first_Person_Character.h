@@ -12,7 +12,7 @@
 UCLASS()
 class HORRORGAME_API Afirst_Person_Character : public ACharacter
 {
-    GENERATED_BODY()
+        GENERATED_BODY()
 
 public:
     Afirst_Person_Character();
@@ -23,6 +23,7 @@ protected:
 public:
     virtual void Tick(float DeltaTime) override;
     virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
+   
 
 private:
     UPROPERTY(EditAnywhere, Category = "Camera")
@@ -71,4 +72,7 @@ private:
     void BeginCrouch();
     void EndCrouch();
     void InteractWithDoor();
+    void Interact();
+
+    Ainteraction_System* Interaction_System;
 };
