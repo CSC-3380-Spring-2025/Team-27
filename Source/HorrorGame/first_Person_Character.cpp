@@ -128,6 +128,7 @@ void Afirst_Person_Character::Tick(float DeltaTime)
 
     //apply head bobbing
     ApplyHeadBobbing(DeltaTime);
+    ApplyCameraSway(DeltaTime);
 }
 
 void Afirst_Person_Character::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
@@ -217,6 +218,24 @@ void Afirst_Person_Character::ApplyHeadBobbing(float DeltaTime) //Head-Bobbing f
         BobbingTime = 0.0f;
         cam->SetRelativeLocation(FMath::VInterpTo(cam->GetRelativeLocation(), DefaultCameraPosition, DeltaTime, 5.0f));
     }
+}
+
+void Afirst_Person_Character::ApplyCameraSway(float DeltaTime)
+{
+    if (!cam) return;
+
+    float LookInput = 0.0f;
+    if (APlayerController* PC = Cast<APlayerController>(GetController()))
+    {
+        LookInput = PC->GetInputAxisValue("SideRotation");
+    }
+
+    float TargetRoll = LookInput * 15.0f;
+
+    FRotator NewRotation = cam->GetRelativeRotation();
+    NewRotation.Roll = FMath::FInterpTo(NewRotation.Roll, TargetRoll, DeltaTime, 5.0f);
+
+    cam->SetRelativeRotation(NewRotation);
 }
 
 void Afirst_Person_Character::ApplyStaminaExhaustionEffects()

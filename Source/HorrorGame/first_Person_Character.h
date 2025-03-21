@@ -78,8 +78,6 @@ private:
     UPROPERTY(VisibleAnywhere, Category = "HeadBobbing")
     FVector DefaultCameraPosition; // Stores the default camera position
 
-    void ApplyHeadBobbing(float DeltaTime);
-
     UPROPERTY(EditAnywhere, Category = "Crouching")
     float StandingCapsuleHalfHeight;
 
@@ -113,6 +111,8 @@ private:
     float InteractionDistance = 200.0f;
 
     void ApplyStaminaExhaustionEffects();
+    void ApplyHeadBobbing(float DeltaTime);
+    void ApplyCameraSway(float DeltaTime);
 
     void StartSprint();
     void StopSprint();
