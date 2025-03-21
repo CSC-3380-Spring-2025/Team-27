@@ -6,6 +6,8 @@
 #include "GameFramework/Character.h"
 #include "Components/InputComponent.h"
 #include "Camera/CameraComponent.h"
+#include "Components/PostProcessComponent.h"
+#include "Blueprint/UserWidget.h"
 #include "first_Person_Character.generated.h"
 
 UCLASS()
@@ -38,6 +40,15 @@ private:
 
     UPROPERTY(EditAnywhere, Category = "Camera")
     float FOVTransitionSpeed;
+
+    UPROPERTY(EditAnywhere, Category = "UI")
+    TSubclassOf<UUserWidget> WB_CrosshairClass;
+
+    UPROPERTY()
+    UUserWidget* CrosshairWidget;
+
+    UPROPERTY(VisibleAnywhere, Category = "PostProcessing")
+    UPostProcessComponent* PostProcessComponent;
 
     UPROPERTY(EditAnywhere, Category = "Movement")
     float DefaultMaxWalkingSpeed;
@@ -100,6 +111,8 @@ private:
 
     UPROPERTY(EditAnywhere, Category = "Interaction")
     float InteractionDistance = 200.0f;
+
+    void ApplyStaminaExhaustionEffects();
 
     void StartSprint();
     void StopSprint();

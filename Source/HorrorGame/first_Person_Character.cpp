@@ -2,7 +2,9 @@
 
 #include "first_Person_Character.h"
 #include "DoorTeleport.h"
+#include "Blueprint/UserWidget.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "Components/PostProcessComponent.h"
 #include "Components/CapsuleComponent.h"
 
 Afirst_Person_Character::Afirst_Person_Character()
@@ -17,10 +19,14 @@ Afirst_Person_Character::Afirst_Person_Character()
     cam->SetupAttachment(RootComponent);
     cam->SetRelativeLocation(FVector(0, 0, 40));
 
+    //post process component
+    PostProcessComponent = CreateDefaultSubobject<UPostProcessComponent>(TEXT("PostProcessComponent"));
+    PostProcessComponent->SetupAttachment(RootComponent);
+
     //basic movement speeds
     DefaultMaxWalkingSpeed = 150.0f;
     SprintSpeedMultiplier = 1.4f;
-    CrouchSpeed = 150.0f;
+    CrouchSpeed = 75.0f;
 
     //crouch camera height
     StandingCapsuleHalfHeight = 88.0f;
@@ -64,7 +70,20 @@ void Afirst_Person_Character::BeginPlay()
     Super::BeginPlay();
     GetCharacterMovement()->MaxWalkSpeed = DefaultMaxWalkingSpeed;
     GetCapsuleComponent()->SetCapsuleHalfHeight(StandingCapsuleHalfHeight);
+
+    //add crosshair to viewport
+    if (WB_CrosshairClass)
+    {
+        CrosshairWidget = CreateWidget<UUserWidget>(GetWorld()->GetFirstPlayerController(), WB_CrosshairClass);
+        if (CrosshairWidget)
+        {
+            CrosshairWidget->AddToViewport(1);
+        }
+    }
 }
+
+
+//TICK FUNCTION
 
 void Afirst_Person_Character::Tick(float DeltaTime)
 {
@@ -81,6 +100,7 @@ void Afirst_Person_Character::Tick(float DeltaTime)
         {
             CurrentStamina = 0;
             StopSprint();
+            ApplyStaminaExhaustionEffects();
             bIsExhausted = true;
             GetWorld()->GetTimerManager().SetTimer(ExhaustionTimerHandle, this, &Afirst_Person_Character::ResetExhaustion, ExhaustionRecoveryTime, false);
         }
@@ -166,11 +186,11 @@ void Afirst_Person_Character::ApplyHeadBobbing(float DeltaTime) //Head-Bobbing f
     float Speed = GetVelocity().Size();
     //reduce bob when walking
     float BobbingFactor = 1.0f; //default bobbing factor
-    if (Speed > 10.0f && Speed < 275.0f) //bob when walking
+    if (Speed > 10.0f && Speed < 150.0f) //bob when walking
     {
         BobbingFactor = 0.5f; //reduce bob intensity when walking
     }
-    else if (Speed >= 275.0f) //more bob when sprint
+    else if (Speed >= 150.0f) //more bob when sprint
     {
         BobbingFactor = 1.0f;
     }
@@ -196,6 +216,23 @@ void Afirst_Person_Character::ApplyHeadBobbing(float DeltaTime) //Head-Bobbing f
         //reset cam position when standing still
         BobbingTime = 0.0f;
         cam->SetRelativeLocation(FMath::VInterpTo(cam->GetRelativeLocation(), DefaultCameraPosition, DeltaTime, 5.0f));
+    }
+}
+
+void Afirst_Person_Character::ApplyStaminaExhaustionEffects()
+{
+    //gradually apply screen distortion each time player runs out of stamina
+
+    if (PostProcessComponent)
+    {
+        FPostProcessSettings& Settings = PostProcessComponent->Settings;
+
+        Settings.bOverride_VignetteIntensity = true;
+        Settings.VignetteIntensity = FMath::Clamp(Settings.VignetteIntensity + 0.2f, 0.0f, 1.0f);
+
+        //add slight blur effect
+        Settings.bOverride_BloomIntensity = true;
+        Settings.BloomIntensity = FMath::Clamp(Settings.BloomIntensity + 0.05f, 0.0f, 1.0f);
     }
 }
 
