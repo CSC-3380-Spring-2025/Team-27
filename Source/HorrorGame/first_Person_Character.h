@@ -27,14 +27,47 @@ private:
     UPROPERTY(EditAnywhere, Category = "Camera")
     UCameraComponent* cam;
 
+    UPROPERTY(EditAnywhere, Category = "Camera")
+    float DefaultFOV; // Default FOV for walking
+
+    UPROPERTY(EditAnywhere, Category = "Camera")
+    float SprintingFOV; // Slightly wider FOV when sprinting
+
+    UPROPERTY(EditAnywhere, Category = "Camera")
+    float CrouchFOV; // FOV when crouching
+
+    UPROPERTY(EditAnywhere, Category = "Camera")
+    float FOVTransitionSpeed;
+
     UPROPERTY(EditAnywhere, Category = "Movement")
     float DefaultMaxWalkingSpeed;
 
     UPROPERTY(EditAnywhere, Category = "Movement")
     float SprintSpeedMultiplier;
+    bool bIsSprinting;
 
     UPROPERTY(EditAnywhere, Category = "Movement")
     float CrouchSpeed;
+
+    UPROPERTY(EditAnywhere, Category = "HeadBobbing")
+    bool bEnableHeadBobbing = true; // Toggle head bobbing on/off
+
+    UPROPERTY(EditAnywhere, Category = "HeadBobbing")
+    float BobbingSpeed = 10.0f; // Speed of the bobbing effect
+
+    UPROPERTY(EditAnywhere, Category = "HeadBobbing")
+    float BobbingAmount = 2.5f; // Intensity of the bobbing effect
+
+    UPROPERTY(EditAnywhere, Category = "HeadBobbing")
+    float CrouchBobbingMultiplier = 0.5f; // Reduce bobbing when crouching
+
+    UPROPERTY(VisibleAnywhere, Category = "HeadBobbing")
+    float BobbingTime; // Internal timer for bobbing calculation
+
+    UPROPERTY(VisibleAnywhere, Category = "HeadBobbing")
+    FVector DefaultCameraPosition; // Stores the default camera position
+
+    void ApplyHeadBobbing(float DeltaTime);
 
     UPROPERTY(EditAnywhere, Category = "Crouching")
     float StandingCapsuleHalfHeight;
@@ -56,7 +89,14 @@ private:
 
     UPROPERTY(EditAnywhere, Category = "Stamina")
     float StaminaRegenRate;
-    bool bIsSprinting;
+
+    UPROPERTY(VisibleAnywhere, Category = "Stamina")
+    bool bIsExhausted = false; //prevents sprinting immediately after running out of stamina
+
+    UPROPERTY(EditAnywhere, Category = "Stamina")
+    float ExhaustionRecoveryTime = 2.0f; //time before player can sprint again
+    FTimerHandle ExhaustionTimerHandle;
+    void ResetExhaustion(); //function to reset exhaustion state
 
     UPROPERTY(EditAnywhere, Category = "Interaction")
     float InteractionDistance = 200.0f;

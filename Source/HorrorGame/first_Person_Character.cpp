@@ -17,20 +17,46 @@ Afirst_Person_Character::Afirst_Person_Character()
     cam->SetupAttachment(RootComponent);
     cam->SetRelativeLocation(FVector(0, 0, 40));
 
-    DefaultMaxWalkingSpeed = 275.0f;
-    SprintSpeedMultiplier = 2.0f;
+    //basic movement speeds
+    DefaultMaxWalkingSpeed = 150.0f;
+    SprintSpeedMultiplier = 1.4f;
     CrouchSpeed = 150.0f;
 
+    //crouch camera height
     StandingCapsuleHalfHeight = 88.0f;
     CrouchingCapsuleHalfHeight = 44.0f;
 
-    MaxStamina = 100.0f;
+    //head-bobbing variables
+    BobbingTime = 0.0f;
+    BobbingSpeed = 10.0f;
+    BobbingAmount = 2.5f;
+    CrouchBobbingMultiplier = 0.5f;
+    bEnableHeadBobbing = true;
+
+    if (cam)
+    {
+        DefaultCameraPosition = cam->GetRelativeLocation();
+    }
+
+    //stamina variables
+    MaxStamina = 50.0f;
     CurrentStamina = MaxStamina;
     StaminaDrainRate = 20.0f;
-    StaminaRegenRate = 10.0f;
+    StaminaRegenRate = 5.0f;
 
     bIsCrouching = false;
     bIsSprinting = false;
+
+    //FOV variables
+    DefaultFOV = 90.0f;
+    SprintingFOV = 100.0f;
+    CrouchFOV = 85.0f;
+    FOVTransitionSpeed = 2.5f;
+
+    if (cam)
+    {
+        cam->SetFieldOfView(DefaultFOV);
+    }
 }
 
 void Afirst_Person_Character::BeginPlay()
@@ -44,26 +70,44 @@ void Afirst_Person_Character::Tick(float DeltaTime)
 {
     Super::Tick(DeltaTime);
 
-    if (bIsSprinting && !bIsCrouching)
+    float TargetFOV = DefaultFOV;
+
+    // Adjust FOV based on movement state
+    if (bIsSprinting && !bIsCrouching && !bIsExhausted)
     {
         CurrentStamina -= StaminaDrainRate * DeltaTime;
+
         if (CurrentStamina <= 0)
         {
             CurrentStamina = 0;
             StopSprint();
+            bIsExhausted = true;
+            GetWorld()->GetTimerManager().SetTimer(ExhaustionTimerHandle, this, &Afirst_Person_Character::ResetExhaustion, ExhaustionRecoveryTime, false);
         }
+
+        TargetFOV = SprintingFOV; // Only change FOV when sprinting
     }
-    else
+    else if (bIsCrouching)
     {
-        if (CurrentStamina < MaxStamina)
+        TargetFOV = CrouchFOV; // Reduce FOV when crouching
+    }
+
+    // Regenerate stamina when not sprinting
+    if (!bIsSprinting && CurrentStamina < MaxStamina)
+    {
+        CurrentStamina += StaminaRegenRate * DeltaTime;
+        if (CurrentStamina > MaxStamina)
         {
-            CurrentStamina += StaminaRegenRate * DeltaTime;
-            if (CurrentStamina > MaxStamina)
-            {
-                CurrentStamina = MaxStamina;
-            }
+            CurrentStamina = MaxStamina;
         }
     }
+
+    // Smooth transition to target FOV
+    float NewFOV = FMath::FInterpTo(cam->FieldOfView, TargetFOV, DeltaTime, FOVTransitionSpeed);
+    cam->SetFieldOfView(NewFOV);
+
+    //apply head bobbing
+    ApplyHeadBobbing(DeltaTime);
 }
 
 void Afirst_Person_Character::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
@@ -102,7 +146,7 @@ void Afirst_Person_Character::Vertic_Move(float value)
 
 void Afirst_Person_Character::StartSprint()
 {
-    if (CurrentStamina > 0 && !bIsCrouching)
+    if (CurrentStamina > 0 && !bIsCrouching && !bIsExhausted)
     {
         bIsSprinting = true;
         GetCharacterMovement()->MaxWalkSpeed = DefaultMaxWalkingSpeed * SprintSpeedMultiplier;
@@ -113,6 +157,51 @@ void Afirst_Person_Character::StopSprint()
 {
     bIsSprinting = false;
     GetCharacterMovement()->MaxWalkSpeed = DefaultMaxWalkingSpeed;
+}
+
+void Afirst_Person_Character::ApplyHeadBobbing(float DeltaTime) //Head-Bobbing function
+{
+    if (!bEnableHeadBobbing || !cam) return;
+
+    float Speed = GetVelocity().Size();
+    //reduce bob when walking
+    float BobbingFactor = 1.0f; //default bobbing factor
+    if (Speed > 10.0f && Speed < 275.0f) //bob when walking
+    {
+        BobbingFactor = 0.5f; //reduce bob intensity when walking
+    }
+    else if (Speed >= 275.0f) //more bob when sprint
+    {
+        BobbingFactor = 1.0f;
+    }
+
+    if (Speed > 10.0f)
+    {
+        BobbingTime += DeltaTime * BobbingSpeed;
+        float BobbingOffset = FMath::Sin(BobbingTime) * BobbingAmount * BobbingFactor;
+
+        //reduce bob when crouching
+        if (bIsCrouching)
+        {
+            BobbingOffset *= CrouchBobbingMultiplier;
+        }
+
+        FVector NewCameraPosition = DefaultCameraPosition;
+        NewCameraPosition.Z += BobbingOffset; //apply bob effect
+
+        cam->SetRelativeLocation(NewCameraPosition);
+    }
+    else
+    {
+        //reset cam position when standing still
+        BobbingTime = 0.0f;
+        cam->SetRelativeLocation(FMath::VInterpTo(cam->GetRelativeLocation(), DefaultCameraPosition, DeltaTime, 5.0f));
+    }
+}
+
+void Afirst_Person_Character::ResetExhaustion()
+{
+    bIsExhausted = false;
 }
 
 void Afirst_Person_Character::Horizon_Rot(float value)
