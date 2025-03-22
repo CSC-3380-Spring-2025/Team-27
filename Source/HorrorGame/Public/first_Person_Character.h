@@ -133,7 +133,5 @@ private:
     float InitialCapsuleHeight;
     float TargetCapsuleHeight;
 
-    void InteractWithDoor();
-
     Ainteraction_System* Interaction_System;
 };
