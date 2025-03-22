@@ -8,6 +8,7 @@
 #include "Camera/CameraComponent.h"
 #include "Components/PostProcessComponent.h"
 #include "Blueprint/UserWidget.h"
+#include "InGameMenuManager.h"
 #include "interaction_System.h"
 #include "first_Person_Character.generated.h"
 
@@ -25,8 +26,10 @@ protected:
 public:
     virtual void Tick(float DeltaTime) override;
     virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
-   
+
     void Interact();
+    UFUNCTION(BlueprintCallable)
+    void ToggleInGameMenu();
 
 private:
     UPROPERTY(EditAnywhere, Category = "Camera")
@@ -49,6 +52,11 @@ private:
 
     UPROPERTY()
     UUserWidget* CrosshairWidget;
+
+    UPROPERTY(EditAnywhere, Category = "UI")
+    TSubclassOf<UInGameMenuManager> InGameMenuWidgetClass;
+
+    UInGameMenuManager* InGameMenuWidget;
 
     UPROPERTY(VisibleAnywhere, Category = "PostProcessing")
     UPostProcessComponent* PostProcessComponent;

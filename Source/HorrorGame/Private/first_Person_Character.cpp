@@ -2,6 +2,9 @@
 
 #include "first_Person_Character.h"
 #include "DoorTeleport.h"
+#include "Kismet/GameplayStatics.h"
+#include "GameFramework/PlayerController.h"
+#include "InGameMenuManager.h"
 #include "Blueprint/UserWidget.h"
 #include "interaction_System.h"
 #include "GameFramework/CharacterMovementComponent.h"
@@ -156,6 +159,8 @@ void Afirst_Person_Character::SetupPlayerInputComponent(UInputComponent* PlayerI
     
     InputComponent->BindAction("InteractTest", IE_Pressed, this, &Afirst_Person_Character::Interact);
     InputComponent->BindAction("Interact", IE_Pressed, this, &Afirst_Person_Character::InteractWithDoor);
+
+    InputComponent->BindAction("ToggleMenu", IE_Pressed, this, &Afirst_Person_Character::ToggleInGameMenu);
 }
 
 void Afirst_Person_Character::Horizon_Move(float value)
@@ -356,6 +361,44 @@ void Afirst_Person_Character::InteractWithDoor()
         if (Door)
         {
             Door->Interact(this);
+        }
+    }
+}
+
+void Afirst_Person_Character::ToggleInGameMenu()
+{
+    if (InGameMenuWidgetClass)
+    {
+        if (!InGameMenuWidget)
+        {
+            InGameMenuWidget = CreateWidget<UInGameMenuManager>(GetWorld(), InGameMenuWidgetClass);
+        }
+
+        if (IsValid(InGameMenuWidget)) // Check if the widget is valid
+        {
+            if (!InGameMenuWidget->IsInViewport())
+            {
+                InGameMenuWidget->AddToViewport();
+                APlayerController* PlayerController = UGameplayStatics::GetPlayerController(GetWorld(), 0);
+                if (IsValid(PlayerController)) // Check if PlayerController is valid
+                {
+                    PlayerController->SetPause(true);
+                    PlayerController->SetInputMode(FInputModeUIOnly());
+                    PlayerController->bShowMouseCursor = true;
+                }
+            }
+            else
+            {
+                InGameMenuWidget->RemoveFromViewport();
+                InGameMenuWidget = nullptr; // Reset the widget reference to avoid dangling pointer
+                APlayerController* PlayerController = UGameplayStatics::GetPlayerController(GetWorld(), 0);
+                if (IsValid(PlayerController)) // Check if PlayerController is valid
+                {
+                    PlayerController->SetPause(false);
+                    PlayerController->SetInputMode(FInputModeGameOnly());
+                    PlayerController->bShowMouseCursor = false;
+                }
+            }
         }
     }
 }
