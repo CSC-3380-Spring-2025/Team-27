@@ -76,7 +76,7 @@ void Afirst_Person_Character::BeginPlay()
     GetCharacterMovement()->MaxWalkSpeed = DefaultMaxWalkingSpeed;
     GetCapsuleComponent()->SetCapsuleHalfHeight(StandingCapsuleHalfHeight);
 
-    //add crosshair to viewpoint
+    //add crosshair widget to viewpoint
     if (WB_CrosshairClass)
     {
         CrosshairWidget = CreateWidget<UUserWidget>(GetWorld()->GetFirstPlayerController(), WB_CrosshairClass);
@@ -86,6 +86,46 @@ void Afirst_Person_Character::BeginPlay()
         }
     }   
 
+    UE_LOG(LogTemp, Warning, TEXT("BeginPlay - Testing pause manager"));
+
+    // spawn the Blueprint version of the pause manager
+    FActorSpawnParameters SpawnParams;
+    SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
+    // use LoadClass to find the blueprint class
+    UClass* PauseManagerBP = LoadClass<APauseManager>(nullptr, TEXT("/Game/Blueprints/BP_PauseManager.BP_PauseManager_C"));
+
+    if (PauseManagerBP)
+    {
+        PauseManager = GetWorld()->SpawnActor<APauseManager>(PauseManagerBP, FVector::ZeroVector, FRotator::ZeroRotator, SpawnParams);
+        UE_LOG(LogTemp, Warning, TEXT("PauseManager blueprint class loaded successfully"));
+    }
+    else
+    {
+        UE_LOG(LogTemp, Error, TEXT("Failed to load BP_PauseManager class. Check the path!"));
+        // fallback to C++ class if blueprint isn't found
+        PauseManager = GetWorld()->SpawnActor<APauseManager>(APauseManager::StaticClass(), FVector::ZeroVector, FRotator::ZeroRotator, SpawnParams);
+    }
+
+    if (PauseManager)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("PauseManager spawned successfully"));
+
+        if (PauseManager->GetPauseMenuClass())
+        {
+            UE_LOG(LogTemp, Warning, TEXT("PauseMenuClass is set correctly"));
+        }
+        else
+        {
+            UE_LOG(LogTemp, Error, TEXT("PauseMenuClass is NULL - Did you set it in BP_PauseManager?"));
+        }
+    }
+    else
+    {
+        UE_LOG(LogTemp, Error, TEXT("Failed to spawn PauseManager"));
+    }
+
+    // load interaction data table
     UDataTable* Interaction_Data_Table = LoadObject<UDataTable>(nullptr, TEXT("/Script/Engine.DataTable'/Game/InteractableDataTable.InteractableDataTable'"));
     if (Interaction_Data_Table)
     {
@@ -99,7 +139,7 @@ void Afirst_Person_Character::Tick(float DeltaTime)
 
     float TargetFOV = DefaultFOV;
 
-    // Adjust FOV based on movement state
+    // adjust FOV based on movement state
     if (bIsSprinting && !bIsCrouching && !bIsExhausted)
     {
         CurrentStamina -= StaminaDrainRate * DeltaTime;
@@ -113,14 +153,14 @@ void Afirst_Person_Character::Tick(float DeltaTime)
             GetWorld()->GetTimerManager().SetTimer(ExhaustionTimerHandle, this, &Afirst_Person_Character::ResetExhaustion, ExhaustionRecoveryTime, false);
         }
 
-        TargetFOV = SprintingFOV; // Only change FOV when sprinting
+        TargetFOV = SprintingFOV; // only change FOV when sprinting
     }
     else if (bIsCrouching)
     {
-        TargetFOV = CrouchFOV; // Reduce FOV when crouching
+        TargetFOV = CrouchFOV; // reduce FOV when crouching
     }
 
-    // Regenerate stamina when not sprinting
+    // regenerate stamina when not sprinting
     if (!bIsSprinting && CurrentStamina < MaxStamina)
     {
         CurrentStamina += StaminaRegenRate * DeltaTime;
@@ -130,7 +170,7 @@ void Afirst_Person_Character::Tick(float DeltaTime)
         }
     }
 
-    // Smooth transition to target FOV
+    // smooth transition to target FOV
     float NewFOV = FMath::FInterpTo(cam->FieldOfView, TargetFOV, DeltaTime, FOVTransitionSpeed);
     cam->SetFieldOfView(NewFOV);
 
@@ -142,18 +182,25 @@ void Afirst_Person_Character::SetupPlayerInputComponent(UInputComponent* PlayerI
 {
     Super::SetupPlayerInputComponent(PlayerInputComponent);
 
+    // CAMERA INPUT (mouse)
     InputComponent->BindAxis("Horizontal", this, &Afirst_Person_Character::Horizon_Move);
     InputComponent->BindAxis("Vertical", this, &Afirst_Person_Character::Vertic_Move);
     InputComponent->BindAxis("SideRotation", this, &Afirst_Person_Character::Horizon_Rot);
     InputComponent->BindAxis("UpDownRotation", this, &Afirst_Person_Character::Vertic_Rot);
 
+    // SPRINT INPUT (Left Shift)
     InputComponent->BindAction("Sprint", IE_Pressed, this, &Afirst_Person_Character::StartSprint);
     InputComponent->BindAction("Sprint", IE_Released, this, &Afirst_Person_Character::StopSprint);
 
+    // CROUCH INPUT (Left CTRL)
     InputComponent->BindAction("Crouch", IE_Pressed, this, &Afirst_Person_Character::BeginCrouch);
     InputComponent->BindAction("Crouch", IE_Released, this, &Afirst_Person_Character::EndCrouch);
     
+    // INTERACT INPUT (e)
     InputComponent->BindAction("InteractTest", IE_Pressed, this, &Afirst_Person_Character::Interact);
+
+    // PAUSE MENU INPUT (Escape)
+    InputComponent->BindAction("PauseGame", IE_Pressed, this, &Afirst_Person_Character::TogglePause);
 }
 
 void Afirst_Person_Character::Horizon_Move(float value)
@@ -169,6 +216,14 @@ void Afirst_Person_Character::Vertic_Move(float value)
     if (value)
     {
         AddMovementInput(GetActorForwardVector(), value);
+    }
+}
+
+void Afirst_Person_Character::TogglePause()
+{
+    if (PauseManager)
+    {
+        PauseManager->TogglePauseMenu();
     }
 }
 
@@ -312,11 +367,11 @@ void Afirst_Person_Character::SmoothCrouchTransition()
     float Alpha = CurrentCrouchTime / MaxCrouchTransitionTime;
     float NewHeight = FMath::Lerp(InitialCapsuleHeight, TargetCapsuleHeight, Alpha);
 
-    // Clamp the height to prevent overshooting
+    // fix transition to prevent overshooting 
     NewHeight = FMath::Clamp(NewHeight, FMath::Min(StandingCapsuleHalfHeight, CrouchingCapsuleHalfHeight), FMath::Max(StandingCapsuleHalfHeight, CrouchingCapsuleHalfHeight));
     GetCapsuleComponent()->SetCapsuleHalfHeight(NewHeight, true);
 
-    // Adjust camera smoothly
+    // adjust camera smoothly
     FVector CameraLocation = cam->GetRelativeLocation();
     float TargetCameraZ = DefaultCameraPosition.Z + (TargetCapsuleHeight - StandingCapsuleHalfHeight) * 0.5f;
     CameraLocation.Z = FMath::FInterpTo(CameraLocation.Z, TargetCameraZ, 0.01f, 2.0f);

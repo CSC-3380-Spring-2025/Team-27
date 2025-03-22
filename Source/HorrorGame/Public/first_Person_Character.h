@@ -8,6 +8,7 @@
 #include "Camera/CameraComponent.h"
 #include "Components/PostProcessComponent.h"
 #include "Blueprint/UserWidget.h"
+#include "PauseManager.h"
 #include "interaction_System.h"
 #include "first_Person_Character.generated.h"
 
@@ -29,9 +30,11 @@ public:
     void Interact();
 
 private:
+    // FIRST PERSON CAMERA FEATURE
     UPROPERTY(EditAnywhere, Category = "Camera")
     UCameraComponent* cam;
 
+    // FOV CAMERA TRANSITION FEATURE
     UPROPERTY(EditAnywhere, Category = "Camera")
     float DefaultFOV; // default FOV for walking
 
@@ -44,15 +47,22 @@ private:
     UPROPERTY(EditAnywhere, Category = "Camera")
     float FOVTransitionSpeed;
 
+    // CROSSHAIR UI
     UPROPERTY(EditAnywhere, Category = "UI")
     TSubclassOf<UUserWidget> WB_CrosshairClass;
 
     UPROPERTY()
     UUserWidget* CrosshairWidget;
 
+    // PAUSE MENU UI
+    UPROPERTY()
+    APauseManager* PauseManager;
+
+    // VISUAL FX FEATURE
     UPROPERTY(VisibleAnywhere, Category = "PostProcessing")
     UPostProcessComponent* PostProcessComponent;
 
+    // PLAYER CONTROLLER FEATURES
     UPROPERTY(EditAnywhere, Category = "Movement")
     float DefaultMaxWalkingSpeed;
 
@@ -63,6 +73,7 @@ private:
     UPROPERTY(EditAnywhere, Category = "Movement")
     float CrouchSpeed;
 
+    // HEAD-BOB FEATURE
     UPROPERTY(EditAnywhere, Category = "HeadBobbing")
     bool bEnableHeadBobbing = true; // toggle head bobbing on/off
 
@@ -90,6 +101,7 @@ private:
     UPROPERTY(VisibleAnywhere, Category = "Crouching")
     bool bIsCrouching;
 
+    // STAMINA FEATURE
     UPROPERTY(EditAnywhere, Category = "Stamina")
     float MaxStamina;
 
@@ -110,22 +122,31 @@ private:
     FTimerHandle ExhaustionTimerHandle;
     void ResetExhaustion(); //function to reset exhaustion state
 
+    //BASIC INTERACTION FEATURE
     UPROPERTY(EditAnywhere, Category = "Interaction")
     float InteractionDistance = 200.0f;
 
+    // VisualFX FUNCTION DECLARATIONS
     void ApplyStaminaExhaustionEffects();
     void ApplyHeadBobbing(float DeltaTime);
 
+    // SPRINT FUNCTION DECLARATIONS
     void StartSprint();
     void StopSprint();
+
+    // CAMERA FUNCTION DECLARATIONS
     void Horizon_Move(float value);
     void Vertic_Move(float value);
     void Horizon_Rot(float value);
     void Vertic_Rot(float value);
+
+    // PAUSE MENU FUNCTION DECLARATION
+    void TogglePause();
+
+    // CROUCH FUNCTION/VARIABLE DECLARATIONS
     void BeginCrouch();
     void EndCrouch();
     void SmoothCrouchTransition();
-
     FTimerHandle CrouchTimerHandle;
     bool bIsCrouchingInProgress;
     float CurrentCrouchTime;
