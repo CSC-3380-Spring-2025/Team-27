@@ -22,14 +22,14 @@ public:
 	void Interact(Afirst_Person_Character* Character);
 
 private:
-    void Perform_Interaction(const FName Interactable_Function, Afirst_Person_Character* Character);
-    void Pickup_Object(Afirst_Person_Character* Character);
-    void Open_Door(Afirst_Person_Character* Character);
-	void View_Note(Afirst_Person_Character* Character);
+    void Perform_Interaction(const FName Interactable_Function, Afirst_Person_Character* Character, AActor* Hit_Actor);
+    void Pickup_Object(Afirst_Person_Character* Character, AActor* Hit_Actor);
+    void Open_Door(Afirst_Person_Character* Character, AActor* Hit_Actor);
+	void View_Note(Afirst_Person_Character* Character, AActor* Hit_Actor);
 
     UPROPERTY()
     UDataTable* Interaction_Data_Table;
 
-    TMap<FName, void(Ainteraction_System::*)(Afirst_Person_Character*)> Interaction_System;
+    TMap<FName, void(Ainteraction_System::*)(Afirst_Person_Character*, AActor*)> Interaction_System;
 
 };

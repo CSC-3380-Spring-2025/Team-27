@@ -64,31 +64,38 @@ void Ainteraction_System::Interact(Afirst_Person_Character* Character)
 
             if (Interaction_Data)
             {
-                Perform_Interaction(Interaction_Data->Interactable_Function, Character);
+                Perform_Interaction(Interaction_Data->Interactable_Function, Character, Hit_Actor);
             }
         }
     }
 }
 
-void Ainteraction_System::Perform_Interaction(const FName Interactable_Function, Afirst_Person_Character* Character)
+void Ainteraction_System::Perform_Interaction(const FName Interactable_Function, Afirst_Person_Character* Character, AActor* Hit_Actor)
 {
     if (Interaction_System.Contains(Interactable_Function))
     {
-        (this->*Interaction_System[Interactable_Function])(Character);
+        (this->*Interaction_System[Interactable_Function])(Character, Hit_Actor);
     }
 }
 
-void Ainteraction_System::Pickup_Object(Afirst_Person_Character* Character)
+void Ainteraction_System::Pickup_Object(Afirst_Person_Character* Character, AActor* Hit_Actor)
 {
     UE_LOG(LogTemp, Log, TEXT("Picked up an object!"));
 }
 
-void Ainteraction_System::Open_Door(Afirst_Person_Character* Character)
+void Ainteraction_System::Open_Door(Afirst_Person_Character* Character, AActor* Hit_Actor)
 {
     UE_LOG(LogTemp, Log, TEXT("Opened a door!"));
+
+    float TeleportDistance = 200.0f;
+    FVector TeleportOffset = FVector(125.0f, 120.0f, 50.0f);
+
+    FVector TeleportLocation = Hit_Actor->GetActorLocation() + (Hit_Actor->GetActorForwardVector() * TeleportDistance) + TeleportOffset; 
+
+    Character->SetActorLocation(TeleportLocation, false, nullptr, ETeleportType::TeleportPhysics);
 }
 
-void Ainteraction_System::View_Note(Afirst_Person_Character* Character)
+void Ainteraction_System::View_Note(Afirst_Person_Character* Character, AActor* Hit_Actor)
 {
     UE_LOG(LogTemp, Log, TEXT("Viewed a note!"));
 }
