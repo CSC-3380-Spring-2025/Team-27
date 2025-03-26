@@ -24,6 +24,15 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "UI")
 	void BPQuitGame() { QuitGame(); }
 
+	UFUNCTION(BlueprintCallable, Category = "UI")
+	void LoadMainMenu();
+
+	UFUNCTION(BlueprintCallable, Category = "UI")
+	void ToggleQuitOptions();
+
+	UFUNCTION(BlueprintCallable, Category = "UI")
+	void QuitToDesktop();
+
 	void TogglePauseMenu();
 	void ResumeGame();
 	void QuitGame();
