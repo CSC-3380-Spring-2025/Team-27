@@ -4,6 +4,7 @@
 #include "Blueprint/UserWidget.h"
 #include "interaction_System.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "Camera/PlayerCameraManager.h"
 #include "Components/PostProcessComponent.h"
 #include "Components/CapsuleComponent.h"
 
@@ -346,4 +347,44 @@ void Afirst_Person_Character::Interact()
     {
         Interaction_System->Interact(this);
     }
+}
+
+void Afirst_Person_Character::StartDoorTransition(const FVector& TargetLocation)
+{
+    APlayerController* PC = Cast<APlayerController>(GetController());
+    if (!PC || !PC->PlayerCameraManager) return;
+
+    const float FadeDuration = 0.5f;
+    const float TotalTransitionTime = FadeDuration * 2.0f;
+
+    // fade to black
+    PC->PlayerCameraManager->StartCameraFade(0.f, 1.f, FadeDuration, FLinearColor::Black, false, true);
+
+    // freeze the player input
+    PC->SetIgnoreMoveInput(true);
+    PC->SetIgnoreLookInput(true);
+
+    // initiate teleportation and fade back in
+    FTimerHandle TransitionTimerHandle;
+    GetWorld()->GetTimerManager().SetTimer(TransitionTimerHandle, [this, TargetLocation, PC, FadeDuration]()
+        {
+            this->SetActorLocation(TargetLocation);
+
+            if (PC && PC->PlayerCameraManager)
+            {
+                PC->PlayerCameraManager->StartCameraFade(1.f, 0.f, FadeDuration, FLinearColor::Black, false, false);
+            }
+
+        }, FadeDuration, false);
+
+    // unfreeze input after fade 
+    FTimerHandle InputUnfreezeHandle;
+    GetWorld()->GetTimerManager().SetTimer(InputUnfreezeHandle, [PC]()
+        {
+            if (PC)
+            {
+                PC->SetIgnoreMoveInput(false);
+                PC->SetIgnoreLookInput(false);
+            }
+        }, TotalTransitionTime, false);
 }

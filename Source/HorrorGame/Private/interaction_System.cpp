@@ -88,11 +88,11 @@ void Ainteraction_System::Open_Door(Afirst_Person_Character* Character, AActor* 
     UE_LOG(LogTemp, Log, TEXT("Opened a door!"));
 
     float TeleportDistance = 200.0f;
-    FVector TeleportOffset = FVector(125.0f, 120.0f, 50.0f);
+    FVector TeleportOffset = FVector(125.0f, 180.0f, 50.0f);
 
     FVector TeleportLocation = Hit_Actor->GetActorLocation() + (Hit_Actor->GetActorForwardVector() * TeleportDistance) + TeleportOffset; 
 
-    Character->SetActorLocation(TeleportLocation, false, nullptr, ETeleportType::TeleportPhysics);
+    Character->StartDoorTransition(TeleportLocation);
 }
 
 void Ainteraction_System::View_Note(Afirst_Person_Character* Character, AActor* Hit_Actor)
