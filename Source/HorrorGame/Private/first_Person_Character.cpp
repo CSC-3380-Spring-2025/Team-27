@@ -26,8 +26,7 @@ Afirst_Person_Character::Afirst_Person_Character()
 
     //basic movements speeds
     DefaultMaxWalkingSpeed = 150.0f;
-    SprintSpeedMultiplier = 1.4f;
-    CrouchSpeed = 75.0f;
+    SprintSpeedMultiplier = 1.45f;
 
     //crouch camera height
     StandingCapsuleHalfHeight = 88.0f;
@@ -47,6 +46,7 @@ Afirst_Person_Character::Afirst_Person_Character()
     if (cam)
     {
         DefaultCameraPosition = cam->GetRelativeLocation();
+        CrouchCameraBaseZ = DefaultCameraPosition.Z;
     }
 
     //stamina variables
@@ -55,14 +55,13 @@ Afirst_Person_Character::Afirst_Person_Character()
     StaminaDrainRate = 20.0f;
     StaminaRegenRate = 5.0f;
 
-    bIsCrouching = false;
     bIsSprinting = false;
 
     //FOV variables
     DefaultFOV = 90.0f;
     SprintingFOV = 100.0f;
     CrouchFOV = 85.0f;
-    FOVTransitionSpeed = 2.5f;
+    FOVTransitionSpeed = 2.0f;
 
     if (cam)
     {
@@ -73,8 +72,9 @@ Afirst_Person_Character::Afirst_Person_Character()
 void Afirst_Person_Character::BeginPlay()
 {
     Super::BeginPlay();
-    GetCharacterMovement()->MaxWalkSpeed = DefaultMaxWalkingSpeed;
-    GetCapsuleComponent()->SetCapsuleHalfHeight(StandingCapsuleHalfHeight);
+    CurrentCapsuleHeight = StandingCapsuleHalfHeight;
+    GetCapsuleComponent()->SetCapsuleHalfHeight(CurrentCapsuleHeight);
+    UpdateMovementSpeed();
 
     //add crosshair widget to viewpoint
     if (WB_CrosshairClass)
@@ -86,44 +86,13 @@ void Afirst_Person_Character::BeginPlay()
         }
     }   
 
-    UE_LOG(LogTemp, Warning, TEXT("BeginPlay - Testing pause manager"));
-
     // spawn the Blueprint version of the pause manager
     FActorSpawnParameters SpawnParams;
     SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 
     // use LoadClass to find the blueprint class
     UClass* PauseManagerBP = LoadClass<APauseManager>(nullptr, TEXT("/Game/Blueprints/BP_PauseManager.BP_PauseManager_C"));
-
-    if (PauseManagerBP)
-    {
-        PauseManager = GetWorld()->SpawnActor<APauseManager>(PauseManagerBP, FVector::ZeroVector, FRotator::ZeroRotator, SpawnParams);
-        UE_LOG(LogTemp, Warning, TEXT("PauseManager blueprint class loaded successfully"));
-    }
-    else
-    {
-        UE_LOG(LogTemp, Error, TEXT("Failed to load BP_PauseManager class. Check the path!"));
-        // fallback to C++ class if blueprint isn't found
-        PauseManager = GetWorld()->SpawnActor<APauseManager>(APauseManager::StaticClass(), FVector::ZeroVector, FRotator::ZeroRotator, SpawnParams);
-    }
-
-    if (PauseManager)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("PauseManager spawned successfully"));
-
-        if (PauseManager->GetPauseMenuClass())
-        {
-            UE_LOG(LogTemp, Warning, TEXT("PauseMenuClass is set correctly"));
-        }
-        else
-        {
-            UE_LOG(LogTemp, Error, TEXT("PauseMenuClass is NULL - Did you set it in BP_PauseManager?"));
-        }
-    }
-    else
-    {
-        UE_LOG(LogTemp, Error, TEXT("Failed to spawn PauseManager"));
-    }
+    PauseManager = PauseManagerBP ? GetWorld()->SpawnActor<APauseManager>(PauseManagerBP, FVector::ZeroVector, FRotator::ZeroRotator, SpawnParams) : GetWorld()->SpawnActor<APauseManager>(APauseManager::StaticClass(), FVector::ZeroVector, FRotator::ZeroRotator, SpawnParams);
 
     // load interaction data table
     UDataTable* Interaction_Data_Table = LoadObject<UDataTable>(nullptr, TEXT("/Script/Engine.DataTable'/Game/InteractableDataTable.InteractableDataTable'"));
@@ -137,10 +106,8 @@ void Afirst_Person_Character::Tick(float DeltaTime)
 {
     Super::Tick(DeltaTime);
 
-    float TargetFOV = DefaultFOV;
-
     // adjust FOV based on movement state
-    if (bIsSprinting && !bIsCrouching && !bIsExhausted)
+    if (bIsSprinting && !bWantsToCrouch && !bIsExhausted)
     {
         CurrentStamina -= StaminaDrainRate * DeltaTime;
 
@@ -152,16 +119,9 @@ void Afirst_Person_Character::Tick(float DeltaTime)
             bIsExhausted = true;
             GetWorld()->GetTimerManager().SetTimer(ExhaustionTimerHandle, this, &Afirst_Person_Character::ResetExhaustion, ExhaustionRecoveryTime, false);
         }
-
-        TargetFOV = SprintingFOV; // only change FOV when sprinting
     }
-    else if (bIsCrouching)
-    {
-        TargetFOV = CrouchFOV; // reduce FOV when crouching
-    }
-
     // regenerate stamina when not sprinting
-    if (!bIsSprinting && CurrentStamina < MaxStamina)
+    else if (!bIsSprinting && CurrentStamina < MaxStamina)
     {
         CurrentStamina += StaminaRegenRate * DeltaTime;
         if (CurrentStamina > MaxStamina)
@@ -171,11 +131,30 @@ void Afirst_Person_Character::Tick(float DeltaTime)
     }
 
     // smooth transition to target FOV
-    float NewFOV = FMath::FInterpTo(cam->FieldOfView, TargetFOV, DeltaTime, FOVTransitionSpeed);
+    float NewFOV = FMath::FInterpTo(cam->FieldOfView, GetTargetFOV(), DeltaTime, FOVTransitionSpeed);
     cam->SetFieldOfView(NewFOV);
 
-    //apply head bobbing
     ApplyHeadBobbing(DeltaTime);
+    SmoothCrouchTransition(DeltaTime);
+}
+
+float Afirst_Person_Character::GetTargetFOV() const
+{
+    if (bIsSprinting && !bWantsToCrouch && !bIsExhausted)
+        return SprintingFOV;
+    if (bWantsToCrouch)
+        return CrouchFOV;
+    return DefaultFOV;
+}
+
+void Afirst_Person_Character::UpdateMovementSpeed()
+{
+    if (bWantsToCrouch)
+        GetCharacterMovement()->MaxWalkSpeed = DefaultMaxWalkingSpeed * 0.5f;
+    else if (bIsSprinting)
+        GetCharacterMovement()->MaxWalkSpeed = DefaultMaxWalkingSpeed * SprintSpeedMultiplier;
+    else
+        GetCharacterMovement()->MaxWalkSpeed = DefaultMaxWalkingSpeed;
 }
 
 void Afirst_Person_Character::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
@@ -229,7 +208,7 @@ void Afirst_Person_Character::TogglePause()
 
 void Afirst_Person_Character::StartSprint()
 {
-    if (CurrentStamina > 0 && !bIsCrouching && !bIsExhausted)
+    if (CurrentStamina > 0 && !bWantsToCrouch && !bIsExhausted)
     {
         bIsSprinting = true;
         GetCharacterMovement()->MaxWalkSpeed = DefaultMaxWalkingSpeed * SprintSpeedMultiplier;
@@ -239,7 +218,15 @@ void Afirst_Person_Character::StartSprint()
 void Afirst_Person_Character::StopSprint()
 {
     bIsSprinting = false;
-    GetCharacterMovement()->MaxWalkSpeed = DefaultMaxWalkingSpeed;
+    
+    if (bWantsToCrouch)
+    {
+        GetCharacterMovement()->MaxWalkSpeed = DefaultMaxWalkingSpeed * 0.5;
+    }
+    else
+    {
+        GetCharacterMovement()->MaxWalkSpeed = DefaultMaxWalkingSpeed;
+    }
 }
 
 void Afirst_Person_Character::ApplyHeadBobbing(float DeltaTime) //Head-Bobbing function
@@ -264,21 +251,21 @@ void Afirst_Person_Character::ApplyHeadBobbing(float DeltaTime) //Head-Bobbing f
         float BobbingOffset = FMath::Sin(BobbingTime) * BobbingAmount * BobbingFactor;
 
         //reduce bob when crouching
-        if (bIsCrouching)
+        if (bWantsToCrouch)
         {
             BobbingOffset *= CrouchBobbingMultiplier;
         }
 
         FVector NewCameraPosition = DefaultCameraPosition;
-        NewCameraPosition.Z += BobbingOffset; //apply bob effect
+        NewCameraPosition.Z = CrouchCameraBaseZ + BobbingOffset; //apply bob effect
 
         cam->SetRelativeLocation(NewCameraPosition);
     }
     else
     {
         //reset cam position when standing still
+        cam->SetRelativeLocation(FMath::VInterpTo(cam->GetRelativeLocation(), FVector(DefaultCameraPosition.X, DefaultCameraPosition.Y, CrouchCameraBaseZ), DeltaTime, 5.0f));
         BobbingTime = 0.0f;
-        cam->SetRelativeLocation(FMath::VInterpTo(cam->GetRelativeLocation(), DefaultCameraPosition, DeltaTime, 5.0f));
     }
 }
 
@@ -327,55 +314,30 @@ void Afirst_Person_Character::Vertic_Rot(float value)
 
 void Afirst_Person_Character::BeginCrouch()
 {
-    if (bIsCrouchingInProgress) return;
+    bWantsToCrouch = true;
 
-    bIsCrouching = true;
-    bIsCrouchingInProgress = true;
-
-    InitialCapsuleHeight = GetCapsuleComponent()->GetScaledCapsuleHalfHeight();
-    TargetCapsuleHeight = CrouchingCapsuleHalfHeight;
-    CurrentCrouchTime = 0.0f;
-
-    GetWorld()->GetTimerManager().SetTimer(CrouchTimerHandle, this, &Afirst_Person_Character::SmoothCrouchTransition, 0.01f, true);
+    GetCharacterMovement()->MaxWalkSpeed = DefaultMaxWalkingSpeed * 0.5f;
 }
 
 void Afirst_Person_Character::EndCrouch()
 {
-    if (bIsCrouchingInProgress) return;
+    bWantsToCrouch = false;
 
-    bIsCrouching = false;
-    bIsCrouchingInProgress = true;
-
-    InitialCapsuleHeight = GetCapsuleComponent()->GetScaledCapsuleHalfHeight();
-    TargetCapsuleHeight = StandingCapsuleHalfHeight;
-    CurrentCrouchTime = 0.0f;
-
-    GetWorld()->GetTimerManager().SetTimer(CrouchTimerHandle, this, &Afirst_Person_Character::SmoothCrouchTransition, 0.01f, true);
+    GetCharacterMovement()->MaxWalkSpeed = DefaultMaxWalkingSpeed;
 }
 
-void Afirst_Person_Character::SmoothCrouchTransition()
+void Afirst_Person_Character::SmoothCrouchTransition(float DeltaTime)
 {
-    if (CurrentCrouchTime >= MaxCrouchTransitionTime)
-    {
-        GetWorld()->GetTimerManager().ClearTimer(CrouchTimerHandle);
-        bIsCrouchingInProgress = false;
-        return;
-    }
+    float TargetHeight = bWantsToCrouch ? CrouchingCapsuleHalfHeight : StandingCapsuleHalfHeight;
 
-    CurrentCrouchTime += 0.01f;
+    // interpolate capsule height
+    CurrentCapsuleHeight = FMath::FInterpTo(CurrentCapsuleHeight, TargetHeight, DeltaTime, CapsuleInterpSpeed);
+    GetCapsuleComponent()->SetCapsuleHalfHeight(CurrentCapsuleHeight, true);
 
-    float Alpha = CurrentCrouchTime / MaxCrouchTransitionTime;
-    float NewHeight = FMath::Lerp(InitialCapsuleHeight, TargetCapsuleHeight, Alpha);
-
-    // fix transition to prevent overshooting 
-    NewHeight = FMath::Clamp(NewHeight, FMath::Min(StandingCapsuleHalfHeight, CrouchingCapsuleHalfHeight), FMath::Max(StandingCapsuleHalfHeight, CrouchingCapsuleHalfHeight));
-    GetCapsuleComponent()->SetCapsuleHalfHeight(NewHeight, true);
-
-    // adjust camera smoothly
-    FVector CameraLocation = cam->GetRelativeLocation();
-    float TargetCameraZ = DefaultCameraPosition.Z + (TargetCapsuleHeight - StandingCapsuleHalfHeight) * 0.5f;
-    CameraLocation.Z = FMath::FInterpTo(CameraLocation.Z, TargetCameraZ, 0.01f, 2.0f);
-    cam->SetRelativeLocation(CameraLocation);
+    // interpolate camera position
+    float HeightDifference = CurrentCapsuleHeight - StandingCapsuleHalfHeight;
+    float TargetCameraZ = DefaultCameraPosition.Z + (HeightDifference * 0.5f);
+    CrouchCameraBaseZ = FMath::FInterpTo(CrouchCameraBaseZ, TargetCameraZ, DeltaTime, CapsuleInterpSpeed);
 }
 
 void Afirst_Person_Character::Interact()
