@@ -124,6 +124,10 @@ private:
     float ExhaustionRecoveryTime = 2.0f; //time before player can sprint again
     FTimerHandle ExhaustionTimerHandle;
 
+    //smooth VFX transition variables
+    float TargetVignetteIntensity;
+    float VFXTransitionSpeed;
+
     //BASIC INTERACTION FEATURE
     UPROPERTY(EditAnywhere, Category = "Interaction")
     float InteractionDistance = 200.0f;

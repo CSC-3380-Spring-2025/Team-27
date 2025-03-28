@@ -24,6 +24,7 @@ Afirst_Person_Character::Afirst_Person_Character()
     //post process component
     PostProcessComponent = CreateDefaultSubobject<UPostProcessComponent>(TEXT("PostProcessComponent"));
     PostProcessComponent->SetupAttachment(RootComponent);
+    PostProcessComponent->bUnbound = true;
 
     //basic movements speeds
     DefaultMaxWalkingSpeed = 150.0f;
@@ -68,11 +69,16 @@ Afirst_Person_Character::Afirst_Person_Character()
     {
         cam->SetFieldOfView(DefaultFOV);
     }
+
+    //visual effects defaults
+    TargetVignetteIntensity = 0.0f;
+    VFXTransitionSpeed = 2.0f;
 }
 
 void Afirst_Person_Character::BeginPlay()
 {
     Super::BeginPlay();
+
     CurrentCapsuleHeight = StandingCapsuleHalfHeight;
     GetCapsuleComponent()->SetCapsuleHalfHeight(CurrentCapsuleHeight);
     UpdateMovementSpeed();
@@ -122,13 +128,23 @@ void Afirst_Person_Character::Tick(float DeltaTime)
         }
     }
     // regenerate stamina when not sprinting
-    else if (!bIsSprinting && CurrentStamina < MaxStamina)
+    else if (!bIsSprinting && !bIsExhausted && CurrentStamina < MaxStamina)
     {
         CurrentStamina += StaminaRegenRate * DeltaTime;
         if (CurrentStamina > MaxStamina)
         {
             CurrentStamina = MaxStamina;
         }
+
+        // fade the vignette effect when resting
+        // a lower transitionspeed means a slower fade
+        VFXTransitionSpeed = 0.5f;
+        TargetVignetteIntensity = 0.0f;
+    }
+    else
+    {
+        //reset transition speed when sprinting
+        VFXTransitionSpeed = 2.0f;
     }
 
     // smooth transition to target FOV
@@ -137,6 +153,14 @@ void Afirst_Person_Character::Tick(float DeltaTime)
 
     ApplyHeadBobbing(DeltaTime);
     SmoothCrouchTransition(DeltaTime);
+
+    if (PostProcessComponent)
+    {
+        FPostProcessSettings& Settings = PostProcessComponent->Settings;
+
+        Settings.bOverride_VignetteIntensity = true;
+        Settings.VignetteIntensity = FMath::FInterpTo(Settings.VignetteIntensity, TargetVignetteIntensity, DeltaTime, VFXTransitionSpeed);
+    }
 }
 
 float Afirst_Person_Character::GetTargetFOV() const
@@ -272,24 +296,13 @@ void Afirst_Person_Character::ApplyHeadBobbing(float DeltaTime) //Head-Bobbing f
 
 void Afirst_Person_Character::ApplyStaminaExhaustionEffects()
 {
-    //gradually apply screen distortion each time player runs out of stamina
-
-    if (PostProcessComponent)
-    {
-        FPostProcessSettings& Settings = PostProcessComponent->Settings;
-
-        Settings.bOverride_VignetteIntensity = true;
-        Settings.VignetteIntensity = FMath::Clamp(Settings.VignetteIntensity + 0.2f, 0.0f, 1.0f);
-
-        //add slight blur effect
-        Settings.bOverride_BloomIntensity = true;
-        Settings.BloomIntensity = FMath::Clamp(Settings.BloomIntensity + 0.05f, 0.0f, 1.0f);
-    }
+    TargetVignetteIntensity = 1.0f;
 }
 
 void Afirst_Person_Character::ResetExhaustion()
 {
     bIsExhausted = false;
+    VFXTransitionSpeed = 0.5f;
 }
 
 void Afirst_Person_Character::Horizon_Rot(float value)
