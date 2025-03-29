@@ -18,9 +18,6 @@ Afirst_Person_Character::Afirst_Person_Character()
     cam->SetupAttachment(RootComponent);
     cam->SetRelativeLocation(FVector(0, 0, 40));
 
-    //interaction system initialization
-    Interaction_System = CreateDefaultSubobject<Ainteraction_System>(TEXT("InteractionSystem"));
-
     //post process component
     PostProcessComponent = CreateDefaultSubobject<UPostProcessComponent>(TEXT("PostProcessComponent"));
     PostProcessComponent->SetupAttachment(RootComponent);
@@ -82,6 +79,9 @@ void Afirst_Person_Character::BeginPlay()
     CurrentCapsuleHeight = StandingCapsuleHalfHeight;
     GetCapsuleComponent()->SetCapsuleHalfHeight(CurrentCapsuleHeight);
     UpdateMovementSpeed();
+
+    //Spawn an instance of the interaction system class
+    Interaction_System = GetWorld()->SpawnActor<Ainteraction_System>(Ainteraction_System::StaticClass(), FVector::ZeroVector, FRotator::ZeroRotator);
 
     //add crosshair widget to viewpoint
     if (WB_CrosshairClass)
