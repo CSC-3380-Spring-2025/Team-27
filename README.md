@@ -4,7 +4,6 @@ Project Manager: Carter Mauer (cmauer2)\
 Communications Lead: Cliff Ricks (Cwiffy)\
 Git Master: Nguyen Vu (NguyenVu2005)\
 Design Lead: Mason Antee (mas0nn)\
-Quality Assurance Tester: Malachi Fowler (MalachiF18)
 
 # About Our Software
 
