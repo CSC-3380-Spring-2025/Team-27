@@ -26,8 +26,15 @@ protected:
 public:
     virtual void Tick(float DeltaTime) override;
     virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
+
+    void StartDoorTransition(const FVector& TargetLocation);
    
     void Interact();
+    void StartSprint();
+    void StopSprint();
+    void BeginCrouch();
+    void EndCrouch();
+    void TogglePause();
 
 private:
     // FIRST PERSON CAMERA FEATURE
@@ -36,13 +43,13 @@ private:
 
     // FOV CAMERA TRANSITION FEATURE
     UPROPERTY(EditAnywhere, Category = "Camera")
-    float DefaultFOV; // default FOV for walking
+    float DefaultFOV;
 
     UPROPERTY(EditAnywhere, Category = "Camera")
-    float SprintingFOV; // slightly wider FOV when sprinting
+    float SprintingFOV;
 
     UPROPERTY(EditAnywhere, Category = "Camera")
-    float CrouchFOV; // FOV when crouching
+    float CrouchFOV;
 
     UPROPERTY(EditAnywhere, Category = "Camera")
     float FOVTransitionSpeed;
@@ -68,23 +75,19 @@ private:
 
     UPROPERTY(EditAnywhere, Category = "Movement")
     float SprintSpeedMultiplier;
-    bool bIsSprinting;
-
-    UPROPERTY(EditAnywhere, Category = "Movement")
-    float CrouchSpeed;
 
     // HEAD-BOB FEATURE
     UPROPERTY(EditAnywhere, Category = "HeadBobbing")
     bool bEnableHeadBobbing = true; // toggle head bobbing on/off
 
     UPROPERTY(EditAnywhere, Category = "HeadBobbing")
-    float BobbingSpeed = 10.0f; // speed of the bobbing effect
+    float BobbingSpeed = 10.0f;
 
     UPROPERTY(EditAnywhere, Category = "HeadBobbing")
-    float BobbingAmount = 2.5f; // intensity of the bobbing effect
+    float CrouchBobbingMultiplier = 0.5f;
 
     UPROPERTY(EditAnywhere, Category = "HeadBobbing")
-    float CrouchBobbingMultiplier = 0.5f; // reduce bobbing when crouching
+    float BobbingAmount = 2.5f;
 
     UPROPERTY(VisibleAnywhere, Category = "HeadBobbing")
     float BobbingTime; // internal timer for bobbing calculation
@@ -98,15 +101,12 @@ private:
     UPROPERTY(EditAnywhere, Category = "Crouching")
     float CrouchingCapsuleHalfHeight;
 
-    UPROPERTY(VisibleAnywhere, Category = "Crouching")
-    bool bIsCrouching;
+    UPROPERTY(EditAnywhere, Category = "Crouching")
+    float MaxCrouchTransitionTime;
 
     // STAMINA FEATURE
     UPROPERTY(EditAnywhere, Category = "Stamina")
     float MaxStamina;
-
-    UPROPERTY(VisibleAnywhere, Category = "Stamina")
-    float CurrentStamina;
 
     UPROPERTY(EditAnywhere, Category = "Stamina")
     float StaminaDrainRate;
@@ -115,12 +115,18 @@ private:
     float StaminaRegenRate;
 
     UPROPERTY(VisibleAnywhere, Category = "Stamina")
+    float CurrentStamina;
+
+    UPROPERTY(VisibleAnywhere, Category = "Stamina")
     bool bIsExhausted = false; //prevents sprinting immediately after running out of stamina
 
     UPROPERTY(EditAnywhere, Category = "Stamina")
     float ExhaustionRecoveryTime = 2.0f; //time before player can sprint again
     FTimerHandle ExhaustionTimerHandle;
-    void ResetExhaustion(); //function to reset exhaustion state
+
+    //smooth VFX transition variables
+    float TargetVignetteIntensity;
+    float VFXTransitionSpeed;
 
     //BASIC INTERACTION FEATURE
     UPROPERTY(EditAnywhere, Category = "Interaction")
@@ -129,30 +135,28 @@ private:
     // VisualFX FUNCTION DECLARATIONS
     void ApplyStaminaExhaustionEffects();
     void ApplyHeadBobbing(float DeltaTime);
-
-    // SPRINT FUNCTION DECLARATIONS
-    void StartSprint();
-    void StopSprint();
+    void ResetExhaustion();
 
     // CAMERA FUNCTION DECLARATIONS
     void Horizon_Move(float value);
     void Vertic_Move(float value);
     void Horizon_Rot(float value);
     void Vertic_Rot(float value);
-
-    // PAUSE MENU FUNCTION DECLARATION
-    void TogglePause();
+    void UpdateMovementSpeed();
+    float GetTargetFOV() const;
 
     // CROUCH FUNCTION/VARIABLE DECLARATIONS
-    void BeginCrouch();
-    void EndCrouch();
-    void SmoothCrouchTransition();
+    void SmoothCrouchTransition(float DeltaTime);
+
     FTimerHandle CrouchTimerHandle;
-    bool bIsCrouchingInProgress;
-    float CurrentCrouchTime;
-    float MaxCrouchTransitionTime;
-    float InitialCapsuleHeight;
-    float TargetCapsuleHeight;
+    bool bIsCrouchingInProgress, bWantsToCrouch, bIsSprinting;
+    float CrouchCameraBaseZ, CurrentCapsuleHeight;
+    float CapsuleInterpSpeed = 4.0f; // crouch speed
 
     Ainteraction_System* Interaction_System;
+
+    bool IsFullyCrouched() const
+    {
+        return FMath::IsNearlyEqual(CurrentCapsuleHeight, CrouchingCapsuleHalfHeight, 1.0f);
+    }
 };

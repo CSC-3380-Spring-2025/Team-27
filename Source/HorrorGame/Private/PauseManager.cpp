@@ -4,12 +4,19 @@
 #include "PauseManager.h"
 #include "Kismet/GameplayStatics.h"
 #include "GameFramework/PlayerController.h"
+#include "Components/HorizontalBox.h"
 
 APauseManager::APauseManager()
 {
 	PrimaryActorTick.bCanEverTick = false;
 	bIsPaused = false;
 
+}
+
+void APauseManager::LoadMainMenu()
+{
+    ResumeGame();
+    UGameplayStatics::OpenLevel(GetWorld(), FName("MainMenuMap"));
 }
 
 void APauseManager::TogglePauseMenu()
@@ -91,5 +98,28 @@ void APauseManager::QuitGame()
 	{
 		UKismetSystemLibrary::QuitGame(GetWorld(), PC, EQuitPreference::Quit, false);
 	}
+}
+
+void APauseManager::ToggleQuitOptions()
+{
+    if (PauseMenuWidget)
+    {
+        // Cast to UHorizontalBox to access specific properties
+        UHorizontalBox* QuitOptionsWidget = Cast<UHorizontalBox>(PauseMenuWidget->GetWidgetFromName(FName("QuitOptionsBox"))); // Use the correct name here
+        if (QuitOptionsWidget)
+        {
+            ESlateVisibility CurrentVisibility = QuitOptionsWidget->GetVisibility();
+            QuitOptionsWidget->SetVisibility(CurrentVisibility == ESlateVisibility::Visible ? ESlateVisibility::Collapsed : ESlateVisibility::Visible);
+        }
+    }
+}
+
+void APauseManager::QuitToDesktop()
+{
+    APlayerController* PC = UGameplayStatics::GetPlayerController(GetWorld(), 0);
+    if (PC)
+    {
+        UKismetSystemLibrary::QuitGame(GetWorld(), PC, EQuitPreference::Quit, false);
+    }
 }
 
