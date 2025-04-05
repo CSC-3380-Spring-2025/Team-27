@@ -5,11 +5,27 @@
 #include "interaction_System.h"
 #include "GameFramework/GameUserSettings.h"
 #include "Kismet/GameplayStatics.h"
+#include "HorrorGameInstance.h"
 #include "GameFramework/GameModeBase.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Camera/PlayerCameraManager.h"
 #include "Components/PostProcessComponent.h"
 #include "Components/CapsuleComponent.h"
+
+
+/*
+    add this wherever a puzzle is triggered/completed (pickup, note, switch, etc)
+
+ * Example: when a puzzle is completed in this class
+    
+    UHorrorGameInstance* GI = Cast<UHorrorGameInstance>(UGameplayStatics::GetGameInstance(this));
+    if (GI && GI->GetLoopIndex() == 1)
+    {
+        GI->bLoop1Complete = true;
+        UE_LOG(LogTemp, Log, TEXT("Puzzle for Loop 1 completed!"));
+    }
+
+*/
 
 Afirst_Person_Character::Afirst_Person_Character()
 {
@@ -101,6 +117,17 @@ void Afirst_Person_Character::BeginPlay()
             CrosshairWidget->AddToViewport(1);
         }
     }   
+
+    // NEW LOOP INIT LOGIC
+    UHorrorGameInstance* GameInstance = Cast<UHorrorGameInstance>(UGameplayStatics::GetGameInstance(this));
+    if (GameInstance)
+    {
+        int32 Loop = GameInstance->GetLoopIndex();
+        UE_LOG(LogTemp, Warning, TEXT("Current Loop: %d"), Loop);
+
+        // TODO: Add visual/audio changes based on the loop number
+        // if (Loop == 2) { Make hallway darker, flicker lights, etc. }
+    }
 
     // spawn the Blueprint version of the pause manager
     FActorSpawnParameters SpawnParams;

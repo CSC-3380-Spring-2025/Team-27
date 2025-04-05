@@ -26,6 +26,10 @@ private:
     void Pickup_Object(Afirst_Person_Character* Character, AActor* Hit_Actor);
     void Open_Door(Afirst_Person_Character* Character, AActor* Hit_Actor);
 	void View_Note(Afirst_Person_Character* Character, AActor* Hit_Actor);
+	void Solve_Test_Puzzle(Afirst_Person_Character* Character, AActor* Hit_Actor);
+
+	void Complete_Loop_Door(Afirst_Person_Character* Character, AActor* Hit_Actor);
+
 
     UPROPERTY()
     UDataTable* Interaction_Data_Table;
