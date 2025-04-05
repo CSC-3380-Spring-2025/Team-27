@@ -33,6 +33,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "UI")
 	void QuitToDesktop();
 
+	UFUNCTION(BlueprintCallable, Category = "UI")
+	void ShowSettingsMenu();
+
+	UFUNCTION(BlueprintCallable, Category = "UI")
+	void ReturnToPauseMenu();
+
 	void TogglePauseMenu();
 	void ResumeGame();
 	void QuitGame();
@@ -43,6 +49,12 @@ private:
 
 	UPROPERTY()
 	UUserWidget* PauseMenuWidget;
+
+	UPROPERTY(EditAnywhere, Category = "UI")
+	TSubclassOf<UUserWidget> SettingsMenuClass; //reference to WB_OptionMenu
+
+	UPROPERTY()
+	UUserWidget* SettingsMenuWidget;
 
 	bool bIsPaused;
 };
