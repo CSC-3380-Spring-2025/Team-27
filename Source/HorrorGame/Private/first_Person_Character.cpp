@@ -4,6 +4,8 @@
 #include "Blueprint/UserWidget.h"
 #include "interaction_System.h"
 #include "GameFramework/GameUserSettings.h"
+#include "Kismet/GameplayStatics.h"
+#include "GameFramework/GameModeBase.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Camera/PlayerCameraManager.h"
 #include "Components/PostProcessComponent.h"
@@ -113,6 +115,23 @@ void Afirst_Person_Character::BeginPlay()
     if (Interaction_Data_Table)
     {
         Interaction_System->Init(Interaction_Data_Table);
+    }
+    APlayerController* PC = Cast<APlayerController>(GetController());
+    if (PC && PC->PlayerCameraManager)
+    {
+        FString OptionValue = UGameplayStatics::ParseOption(UGameplayStatics::GetGameMode(this)->OptionsString, TEXT("FadeFromMainMenu"));
+        if (OptionValue.Equals("true", ESearchCase::IgnoreCase))
+        {
+            // start fully black
+            PC->PlayerCameraManager->StartCameraFade(1.f, 1.f, 0.f, FLinearColor::Black, true, true);
+
+            // fade out from black after slight delay
+            FTimerHandle FadeInHandle;
+            GetWorld()->GetTimerManager().SetTimer(FadeInHandle, [PC]()
+                {
+                    PC->PlayerCameraManager->StartCameraFade(1.f, 0.f, 1.0f, FLinearColor::Black, false, true);
+                }, 0.1f, false); // change this so user waits 2 seconds on a black screen 
+        }
     }
 }
 
