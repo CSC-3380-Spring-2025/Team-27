@@ -3,6 +3,7 @@
 #include "first_Person_Character.h"
 #include "Blueprint/UserWidget.h"
 #include "interaction_System.h"
+#include "GameFramework/GameUserSettings.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Camera/PlayerCameraManager.h"
 #include "Components/PostProcessComponent.h"
@@ -82,6 +83,12 @@ void Afirst_Person_Character::BeginPlay()
 
     //Spawn an instance of the interaction system class
     Interaction_System = GetWorld()->SpawnActor<Ainteraction_System>(Ainteraction_System::StaticClass(), FVector::ZeroVector, FRotator::ZeroRotator);
+
+    // apply user settings on game start
+    if (GEngine && GEngine->GetGameUserSettings())
+    {
+        GEngine->GetGameUserSettings()->ApplySettings(false); // false = dont restart settings, keep them throughout
+    }
 
     //add crosshair widget to viewpoint
     if (WB_CrosshairClass)
