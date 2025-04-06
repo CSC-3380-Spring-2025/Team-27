@@ -23,6 +23,9 @@ public:
 protected:
     virtual void BeginPlay() override;
 
+    UPROPERTY()
+    UDataTable* CachedInteractionDataTable;
+
 public:
     virtual void Tick(float DeltaTime) override;
     virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
@@ -36,11 +39,22 @@ public:
     void EndCrouch();
     void TogglePause();
 
-private:
     // FIRST PERSON CAMERA FEATURE
-    UPROPERTY(EditAnywhere, Category = "Camera")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera")
     UCameraComponent* cam;
 
+    //BASIC INTERACTION FEATURE
+    UPROPERTY(EditAnywhere, Category = "Interaction")
+    float InteractionDistance = 200.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Transition")
+    float TeleportFadeDuration = 0.5f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Transition")
+    float TeleportDelayTime = 0.6f;
+
+
+private:
     // FOV CAMERA TRANSITION FEATURE
     UPROPERTY(EditAnywhere, Category = "Camera")
     float DefaultFOV;
@@ -128,10 +142,6 @@ private:
     float TargetVignetteIntensity;
     float VFXTransitionSpeed;
 
-    //BASIC INTERACTION FEATURE
-    UPROPERTY(EditAnywhere, Category = "Interaction")
-    float InteractionDistance = 200.0f;
-
     // VisualFX FUNCTION DECLARATIONS
     void ApplyStaminaExhaustionEffects();
     void ApplyHeadBobbing(float DeltaTime);
@@ -154,6 +164,8 @@ private:
     float CapsuleInterpSpeed = 4.0f; // crouch speed
 
     Ainteraction_System* Interaction_System;
+
+    // void MarkCurrentLoopPuzzleComplete(); **optional helper for centralizing puzzle completion tracking**
 
     bool IsFullyCrouched() const
     {
