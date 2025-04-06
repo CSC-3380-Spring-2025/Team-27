@@ -99,7 +99,6 @@ void UHorrorGameInstance::StartNewGame()
     CurrentLoopIndex = 1;
 
     // reset puzzle flags
-    bHasCompletedPuzzle1 = false;
     bLoop1Complete = false;
     bLoop2Complete = false;
     bLoop3Complete = false;

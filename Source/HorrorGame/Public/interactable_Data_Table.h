@@ -6,12 +6,15 @@
 #include "Engine/DataTable.h"
 #include "interactable_Data_Table.generated.h"
 
-USTRUCT()
+USTRUCT(BlueprintType)
 struct FInteractable_Data : public FTableRowBase
 {
 	GENERATED_BODY()
 
-	UPROPERTY(EditAnywhere)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	FName Interactable_Function; 
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FName TeleportTargetTag;
 
 };

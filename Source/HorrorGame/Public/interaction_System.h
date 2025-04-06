@@ -18,22 +18,50 @@ public:
 	// Sets default values for this actor's properties
 	Ainteraction_System();
 
-	void Init(UDataTable* DataTable);
+	UFUNCTION()
 	void Interact(Afirst_Person_Character* Character);
 
+	void SetInteractionDataTable(UDataTable* Table)
+	{
+		Interaction_Data_Table = Table;
+	}
+
+protected:
+	virtual void BeginPlay() override;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Data Table")
+	UDataTable* Interaction_Data_Table;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Teleport")
+	AActor* EntryTeleportTarget;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Teleport")
+	FName TeleportTargetTag;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Transition")
+	float OpenDoorFadeDuration = 0.5f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Transition")
+	float OpenDoorDelayTime = 0.6f;
+
+
 private:
-    void Perform_Interaction(const FName Interactable_Function, Afirst_Person_Character* Character, AActor* Hit_Actor);
-    void Pickup_Object(Afirst_Person_Character* Character, AActor* Hit_Actor);
-    void Open_Door(Afirst_Person_Character* Character, AActor* Hit_Actor);
-	void View_Note(Afirst_Person_Character* Character, AActor* Hit_Actor);
-	void Solve_Test_Puzzle(Afirst_Person_Character* Character, AActor* Hit_Actor);
+	// Interaction routing
+	void Perform_Interaction(Afirst_Person_Character* Character, AActor* HitActor);
 
-	void Complete_Loop_Door(Afirst_Person_Character* Character, AActor* Hit_Actor);
+	// Interaction functions
+	void Pickup_Object(Afirst_Person_Character* Character, AActor* HitActor);
+	void View_Note(Afirst_Person_Character* Character, AActor* HitActor);
+	void CollectLoop1Key(Afirst_Person_Character* Character, AActor* HitActor);
+	void CompleteLoopDoor(Afirst_Person_Character* Character, AActor* HitActor);
+
+	void TeleportUsingDataTable(Afirst_Person_Character* Character, AActor* HitActor);
 
 
-    UPROPERTY()
-    UDataTable* Interaction_Data_Table;
 
-    TMap<FName, void(Ainteraction_System::*)(Afirst_Person_Character*, AActor*)> Interaction_System;
+	// Map of tag -> function pointer
+	TMap<FName, void (Ainteraction_System::*)(Afirst_Person_Character*, AActor*)> Interaction_Functions;
+
+	void InitInteractionFunctionMap();
 
 };

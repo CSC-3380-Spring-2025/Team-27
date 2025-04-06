@@ -33,6 +33,8 @@ Afirst_Person_Character::Afirst_Person_Character()
     AutoPossessPlayer = EAutoReceiveInput::Player0;
     bUseControllerRotationYaw = false;
 
+    RootComponent = GetCapsuleComponent();
+
     cam = CreateDefaultSubobject<UCameraComponent>(TEXT("Camera"));
     cam->SetupAttachment(RootComponent);
     cam->SetRelativeLocation(FVector(0, 0, 40));
@@ -135,13 +137,18 @@ void Afirst_Person_Character::BeginPlay()
 
     // use LoadClass to find the blueprint class
     UClass* PauseManagerBP = LoadClass<APauseManager>(nullptr, TEXT("/Game/Blueprints/BP_PauseManager.BP_PauseManager_C"));
-    PauseManager = PauseManagerBP ? GetWorld()->SpawnActor<APauseManager>(PauseManagerBP, FVector::ZeroVector, FRotator::ZeroRotator, SpawnParams) : GetWorld()->SpawnActor<APauseManager>(APauseManager::StaticClass(), FVector::ZeroVector, FRotator::ZeroRotator, SpawnParams);
+    PauseManager = PauseManagerBP ? GetWorld()->SpawnActor<APauseManager>(PauseManagerBP, FVector::ZeroVector, FRotator::ZeroRotator, SpawnParams) : nullptr;
 
     // load interaction data table
-    UDataTable* Interaction_Data_Table = LoadObject<UDataTable>(nullptr, TEXT("/Script/Engine.DataTable'/Game/DataTables/InteractableDataTable.InteractableDataTable'"));
-    if (Interaction_Data_Table)
+    CachedInteractionDataTable = LoadObject<UDataTable>(nullptr, TEXT("/Script/Engine.DataTable'/Game/DataTables/InteractableDataTable.InteractableDataTable'"));
+    if (Interaction_System && CachedInteractionDataTable)
     {
-        Interaction_System->Init(Interaction_Data_Table);
+        Interaction_System->SetInteractionDataTable(CachedInteractionDataTable);
+        UE_LOG(LogTemp, Log, TEXT("Interaction Data Table Set Successfully"));
+    }
+    else
+    {
+        UE_LOG(LogTemp, Error, TEXT("Failed to load or assign Interaction Data Table!"));
     }
     APlayerController* PC = Cast<APlayerController>(GetController());
     if (PC && PC->PlayerCameraManager)
@@ -240,24 +247,24 @@ void Afirst_Person_Character::SetupPlayerInputComponent(UInputComponent* PlayerI
     Super::SetupPlayerInputComponent(PlayerInputComponent);
 
     // CAMERA INPUT (mouse)
-    InputComponent->BindAxis("Horizontal", this, &Afirst_Person_Character::Horizon_Move);
-    InputComponent->BindAxis("Vertical", this, &Afirst_Person_Character::Vertic_Move);
-    InputComponent->BindAxis("SideRotation", this, &Afirst_Person_Character::Horizon_Rot);
-    InputComponent->BindAxis("UpDownRotation", this, &Afirst_Person_Character::Vertic_Rot);
+    PlayerInputComponent->BindAxis("Horizontal", this, &Afirst_Person_Character::Horizon_Move);
+    PlayerInputComponent->BindAxis("Vertical", this, &Afirst_Person_Character::Vertic_Move);
+    PlayerInputComponent->BindAxis("SideRotation", this, &Afirst_Person_Character::Horizon_Rot);
+    PlayerInputComponent->BindAxis("UpDownRotation", this, &Afirst_Person_Character::Vertic_Rot);
 
     // SPRINT INPUT (Left Shift)
-    InputComponent->BindAction("Sprint", IE_Pressed, this, &Afirst_Person_Character::StartSprint);
-    InputComponent->BindAction("Sprint", IE_Released, this, &Afirst_Person_Character::StopSprint);
+    PlayerInputComponent->BindAction("Sprint", IE_Pressed, this, &Afirst_Person_Character::StartSprint);
+    PlayerInputComponent->BindAction("Sprint", IE_Released, this, &Afirst_Person_Character::StopSprint);
 
     // CROUCH INPUT (Left CTRL)
-    InputComponent->BindAction("Crouch", IE_Pressed, this, &Afirst_Person_Character::BeginCrouch);
-    InputComponent->BindAction("Crouch", IE_Released, this, &Afirst_Person_Character::EndCrouch);
+    PlayerInputComponent->BindAction("Crouch", IE_Pressed, this, &Afirst_Person_Character::BeginCrouch);
+    PlayerInputComponent->BindAction("Crouch", IE_Released, this, &Afirst_Person_Character::EndCrouch);
     
     // INTERACT INPUT (e)
-    InputComponent->BindAction("InteractTest", IE_Pressed, this, &Afirst_Person_Character::Interact);
+    PlayerInputComponent->BindAction("InteractTest", IE_Pressed, this, &Afirst_Person_Character::Interact);
 
     // PAUSE MENU INPUT (Escape)
-    InputComponent->BindAction("PauseGame", IE_Pressed, this, &Afirst_Person_Character::TogglePause);
+    PlayerInputComponent->BindAction("PauseGame", IE_Pressed, this, &Afirst_Person_Character::TogglePause);
 }
 
 void Afirst_Person_Character::Horizon_Move(float value)
@@ -420,37 +427,40 @@ void Afirst_Person_Character::StartDoorTransition(const FVector& TargetLocation)
     APlayerController* PC = Cast<APlayerController>(GetController());
     if (!PC || !PC->PlayerCameraManager) return;
 
-    const float FadeDuration = 0.5f;
+    // Use configurable property
+    const float FadeDuration = TeleportFadeDuration;
     const float TotalTransitionTime = FadeDuration * 2.0f;
 
-    // fade to black
+    // Fade to black
     PC->PlayerCameraManager->StartCameraFade(0.f, 1.f, FadeDuration, FLinearColor::Black, false, true);
 
-    // freeze the player input
+    // Freeze input
     PC->SetIgnoreMoveInput(true);
     PC->SetIgnoreLookInput(true);
 
-    // initiate teleportation and fade back in
+    // Create weak pointers for capture safety
+    TWeakObjectPtr<Afirst_Person_Character> WeakThis(this);
+    TWeakObjectPtr<APlayerController> WeakPC(PC);
+
+    // Teleport after fade-out delay
     FTimerHandle TransitionTimerHandle;
-    GetWorld()->GetTimerManager().SetTimer(TransitionTimerHandle, [this, TargetLocation, PC, FadeDuration]()
+    GetWorld()->GetTimerManager().SetTimer(TransitionTimerHandle, [WeakThis, TargetLocation, WeakPC, FadeDuration]()
         {
-            this->SetActorLocation(TargetLocation);
-
-            if (PC && PC->PlayerCameraManager)
+            if (WeakThis.IsValid() && WeakPC.IsValid() && WeakPC->PlayerCameraManager)
             {
-                PC->PlayerCameraManager->StartCameraFade(1.f, 0.f, FadeDuration, FLinearColor::Black, false, false);
+                WeakThis->SetActorLocation(TargetLocation);
+                WeakPC->PlayerCameraManager->StartCameraFade(1.f, 0.f, FadeDuration, FLinearColor::Black, false, false);
             }
-
         }, FadeDuration, false);
 
-    // unfreeze input after fade 
+    // Unfreeze input after the total transition time
     FTimerHandle InputUnfreezeHandle;
-    GetWorld()->GetTimerManager().SetTimer(InputUnfreezeHandle, [PC]()
+    GetWorld()->GetTimerManager().SetTimer(InputUnfreezeHandle, [WeakPC]()
         {
-            if (PC)
+            if (WeakPC.IsValid())
             {
-                PC->SetIgnoreMoveInput(false);
-                PC->SetIgnoreLookInput(false);
+                WeakPC->SetIgnoreMoveInput(false);
+                WeakPC->SetIgnoreLookInput(false);
             }
         }, TotalTransitionTime, false);
 }

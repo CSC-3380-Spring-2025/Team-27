@@ -60,9 +60,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Loop")
 	int32 GetLoopIndex() const { return CurrentLoopIndex; }
 
-	UPROPERTY(BlueprintReadWrite, Category = "PuzzleProgress")
-	bool bHasCompletedPuzzle1 = false;	// now we can set/unset these flags globally and check them from any class
-
 	// per loop puzzle completion flags
 	UPROPERTY(BlueprintReadWrite, Category = "PuzzleProgress")
 	bool bLoop1Complete = false;
