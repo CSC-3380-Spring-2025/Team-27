@@ -4,6 +4,7 @@
 #include "PauseManager.h"
 #include "Kismet/GameplayStatics.h"
 #include "GameFramework/PlayerController.h"
+#include "HorrorGameInstance.h"
 #include "Components/HorizontalBox.h"
 
 APauseManager::APauseManager()
@@ -184,6 +185,16 @@ void APauseManager::ReturnToPauseMenu()
     if (PauseMenuWidget)
     {
         PauseMenuWidget->SetVisibility(ESlateVisibility::Visible);
+    }
+}
+
+void APauseManager::SaveGame()
+{
+    UHorrorGameInstance* GI = Cast<UHorrorGameInstance>(UGameplayStatics::GetGameInstance(GetWorld()));
+    if (GI)
+    {
+        GI->SaveGameProgress();
+        UE_LOG(LogTemp, Warning, TEXT("Save Game requested from Pause Menu"));      // check output log to see if the save worked
     }
 }
 

@@ -39,6 +39,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "UI")
 	void ReturnToPauseMenu();
 
+	UFUNCTION(BlueprintCallable, Category = "Save")
+	void SaveGame();
+
 	void TogglePauseMenu();
 	void ResumeGame();
 	void QuitGame();

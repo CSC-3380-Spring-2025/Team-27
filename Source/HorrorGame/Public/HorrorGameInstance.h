@@ -89,7 +89,11 @@ public:
 	void SaveGameProgress();
 
 	UFUNCTION(BlueprintCallable)
-	void LoadGameProgress();
+	bool LoadGameProgress();
+
+	UFUNCTION(BlueprintCallable, Category = "Loop")
+	void StartNewGame();
+
 
 	
 };
