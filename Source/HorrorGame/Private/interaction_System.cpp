@@ -138,17 +138,20 @@ void Ainteraction_System::TeleportUsingDataTable(Afirst_Person_Character* Charac
 }
 
 
-// Exit door logic
+// exit door logic
 void Ainteraction_System::CompleteLoopDoor(Afirst_Person_Character* Character, AActor* HitActor)
 {
     if (!Character || !HitActor) return;
 
+    // get the game instance
     UHorrorGameInstance* GI = Cast<UHorrorGameInstance>(UGameplayStatics::GetGameInstance(Character));
     if (!GI) return;
 
+    // get current loop
     int32 CurrentLoop = GI->GetLoopIndex();
     bool bCanExit = false;
 
+    // check if the current loop's puzzle(s) is complete
     switch (CurrentLoop)
     {
     case 1: bCanExit = GI->bLoop1Complete; break;
@@ -162,12 +165,30 @@ void Ainteraction_System::CompleteLoopDoor(Afirst_Person_Character* Character, A
         return;
     }
 
-    FVector NewLocation = FVector(-3357.690591f, -395.572065f, 92.603541f); // replace with desired spawn (test), AFTER TEST REPLACE WITH A NEW LEVEL SPAWN FOR EACH LOOP
-    Character->SetActorLocation(NewLocation);
-
+    // advance to next loop
     GI->AdvanceLoop();
+    int32 NextLoop = GI->GetLoopIndex();
+
+    FString NextLevelName = FString::Printf(TEXT("Room%d"), NextLoop);
 
     UE_LOG(LogTemp, Warning, TEXT("Loop %d completed! Now entering Loop %d."), CurrentLoop, GI->GetLoopIndex());
+
+    // get player controller
+    APlayerController* PC = UGameplayStatics::GetPlayerController(GetWorld(), 0);
+    if (PC && PC->PlayerCameraManager)
+    {
+        // fade out visual
+        PC->PlayerCameraManager->StartCameraFade(0.f, 1.f, 1.0f, FLinearColor::Black, false, true);
+    }
+
+    // delay level load to allow fade to complete
+    FTimerHandle LoadLevelHandle;
+    FTimerDelegate LoadNextLevel = FTimerDelegate::CreateLambda([NextLevelName]()
+        {
+            UGameplayStatics::OpenLevel(GWorld, FName(*NextLevelName), true, TEXT("?FadeFromMainMenu=true"));
+        });
+
+    GetWorld()->GetTimerManager().SetTimer(LoadLevelHandle, LoadNextLevel, 1.2f, false);
 }
 
 
@@ -176,7 +197,7 @@ void Ainteraction_System::View_Note(Afirst_Person_Character* Character, AActor* 
     UE_LOG(LogTemp, Log, TEXT("Viewed a note!"));
 }
 
-// Key interaction for loop 1
+// key interaction logic for loop 1
 void Ainteraction_System::CollectLoop1Key(Afirst_Person_Character* Character, AActor* HitActor)
 {
     if (!Character || !HitActor) return;
