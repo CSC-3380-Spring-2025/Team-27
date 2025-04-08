@@ -2,6 +2,7 @@
 
 #include "HorrorGameInstance.h"
 #include "HorrorSaveGame.h"
+#include "Components/AudioComponent.h"
 #include "Kismet/GameplayStatics.h"
 
 // all logic in header
@@ -111,6 +112,69 @@ void UHorrorGameInstance::StartNewGame()
 
     UE_LOG(LogTemp, Warning, TEXT("New Game started. Loop index and puzzle flags reset."));
 }
+
+void UHorrorGameInstance::ContinueGameWithTransition(UObject* WorldContextObject)
+{
+    if (!WorldContextObject)
+    {
+        UE_LOG(LogTemp, Error, TEXT("Invalid WorldContextObject passed to ContinueGameWithTransition"));
+        return;
+    }
+
+    UWorld* World = WorldContextObject->GetWorld();
+    if (!World)
+    {
+        UE_LOG(LogTemp, Error, TEXT("Failed to get World from WorldContextObject"));
+        return;
+    }
+
+    if (!LoadGameProgress())
+    {
+        UE_LOG(LogTemp, Warning, TEXT("ContinueGameWithTransition failed: no save found."));
+        return;
+    }
+
+    // Stop or fade out the menu music (assuming it's tagged as "MenuMusic")
+    TArray<AActor*> MusicActors;
+    UGameplayStatics::GetAllActorsWithTag(World, TEXT("MenuMusic"), MusicActors);
+    for (AActor* Actor : MusicActors)
+    {
+        UAudioComponent* AudioComp = Actor->FindComponentByClass<UAudioComponent>();
+        if (AudioComp)
+        {
+            // Instantly stop or use fade-out
+            // AudioComp->Stop();
+            AudioComp->FadeOut(1.2f, 0.0f); // smoother exit
+        }
+    }
+
+    // Fade to black
+    APlayerController* PC = UGameplayStatics::GetPlayerController(World, 0);
+    const float FadeDuration = 1.6f;
+
+    if (PC && PC->PlayerCameraManager)
+    {
+        PC->PlayerCameraManager->StartCameraFade(0.f, 1.f, FadeDuration, FLinearColor::Black, false, true);
+    }
+
+    // Determine level to load
+    FString LevelName = FString::Printf(TEXT("Room%d?FadeFromMainMenu=true"), CurrentLoopIndex);
+
+    // Delay load until fade completes
+    FTimerHandle LoadLevelTimerHandle;
+    World->GetTimerManager().SetTimer(LoadLevelTimerHandle, [LevelName]()
+        {
+            UGameplayStatics::OpenLevel(GWorld, FName(*LevelName));
+        }, FadeDuration + 0.1f, false);
+}
+
+bool UHorrorGameInstance::IsSaveAvailable() const
+{
+    return UGameplayStatics::DoesSaveGameExist(TEXT("HorrorSaveSlot"), 0);
+}
+
+
+
 
 
 

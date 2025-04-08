@@ -4,6 +4,8 @@
 
 #include "CoreMinimal.h"
 #include "Engine/GameInstance.h"
+#include "Kismet/GameplayStatics.h"
+#include "TimerManager.h"
 #include "HorrorGameInstance.generated.h"
 
 /**
@@ -90,6 +92,13 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Loop")
 	void StartNewGame();
+
+	UFUNCTION(BlueprintCallable, Category = "Loop", meta = (WorldContext = "WorldContextObject"))
+	void ContinueGameWithTransition(UObject* WorldContextObject);
+
+	UFUNCTION(BlueprintCallable, Category = "Save")
+	bool IsSaveAvailable() const;
+
 
 
 	
