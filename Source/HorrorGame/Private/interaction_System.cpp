@@ -29,6 +29,7 @@ void Ainteraction_System::InitInteractionFunctionMap()
     Interaction_Functions.Add(FName(TEXT("OpenDoor")), &Ainteraction_System::TeleportUsingDataTable);
     Interaction_Functions.Add(FName(TEXT("ExitDoor")), &Ainteraction_System::CompleteLoopDoor);
     Interaction_Functions.Add(FName(TEXT("Loop1Key")), &Ainteraction_System::CollectLoop1Key);
+    Interaction_Functions.Add(FName(TEXT("Loop2Note")), &Ainteraction_System::CollectLoop2Note);
     Interaction_Functions.Add("TeleportToMainRoom", &Ainteraction_System::TeleportUsingDataTable); // uses the DataTable
 
 }
@@ -146,13 +147,32 @@ void Ainteraction_System::CompleteLoopDoor(Afirst_Person_Character* Character, A
     // get the game instance
     UHorrorGameInstance* GI = Cast<UHorrorGameInstance>(UGameplayStatics::GetGameInstance(Character));
     if (!GI) return;
+    
+    // grab loop index from the ExitDoor actor
+    int32 DoorLoopIndex = -1;
+    if (HitActor->GetClass()->ImplementsInterface(UInterface::StaticClass())) // if you make a custom interface
+    {
+        // Optionally get this via interface
+    }
+    else
+    {
+        FProperty* LoopProp = HitActor->GetClass()->FindPropertyByName("ExitDoorLoopIndex");
+        if (LoopProp)
+        {
+            void* PropAddr = LoopProp->ContainerPtrToValuePtr<void>(HitActor);
+            DoorLoopIndex = *reinterpret_cast<int32*>(PropAddr);
+        }
+    }
 
-    // get current loop
-    int32 CurrentLoop = GI->GetLoopIndex();
-    bool bCanExit = false;
+    if (DoorLoopIndex <= 0 || DoorLoopIndex != GI->GetLoopIndex())
+    {
+        UE_LOG(LogTemp, Warning, TEXT("ExitDoor not for this loop or invalid."));
+        return;
+    }
 
     // check if the current loop's puzzle(s) is complete
-    switch (CurrentLoop)
+    bool bCanExit = false;
+    switch (DoorLoopIndex)
     {
     case 1: bCanExit = GI->bLoop1Complete; break;
     case 2: bCanExit = GI->bLoop2Complete; break;
@@ -171,7 +191,7 @@ void Ainteraction_System::CompleteLoopDoor(Afirst_Person_Character* Character, A
 
     FString NextLevelName = FString::Printf(TEXT("Room%d"), NextLoop);
 
-    UE_LOG(LogTemp, Warning, TEXT("Loop %d completed! Now entering Loop %d."), CurrentLoop, GI->GetLoopIndex());
+    UE_LOG(LogTemp, Warning, TEXT("Loop %d completed! Now entering Loop %d."), DoorLoopIndex, NextLoop);
 
     // get player controller
     APlayerController* PC = UGameplayStatics::GetPlayerController(GetWorld(), 0);
@@ -208,6 +228,20 @@ void Ainteraction_System::CollectLoop1Key(Afirst_Person_Character* Character, AA
         GI->bLoop1Complete = true;
         HitActor->Destroy();
         UE_LOG(LogTemp, Warning, TEXT("Loop 1 Key Collected!"));
+        UE_LOG(LogTemp, Warning, TEXT("Loop 2 Puzzle completed! Exit door should now be usable."));
     }
 }
 
+void Ainteraction_System::CollectLoop2Note(Afirst_Person_Character* Character, AActor* HitActor)
+{
+    if (!Character || !HitActor) return;
+
+    UHorrorGameInstance* GI = Cast<UHorrorGameInstance>(UGameplayStatics::GetGameInstance(Character));
+    if (GI && GI->GetLoopIndex() == 2)
+    {
+        GI->bLoop2Complete = true;
+        UE_LOG(LogTemp, Warning, TEXT("Loop 2 Key Collected!"));
+        UE_LOG(LogTemp, Warning, TEXT("Loop 2 Puzzle completed! Exit door should now be usable."));
+        HitActor->Destroy();
+    }
+}
