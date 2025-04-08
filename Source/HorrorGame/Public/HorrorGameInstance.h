@@ -30,6 +30,9 @@
  * see 'Complete_Loop_Door()' in interaction_System.cpp for door logic
  * 
  */
+
+class UHorrorSaveGame;
+
 UCLASS()
 class HORRORGAME_API UHorrorGameInstance : public UGameInstance
 {
@@ -88,7 +91,7 @@ public:
 	void SaveGameProgress();
 
 	UFUNCTION(BlueprintCallable)
-	bool LoadGameProgress();
+	UHorrorSaveGame* LoadGameAndReturn();
 
 	UFUNCTION(BlueprintCallable, Category = "Loop")
 	void StartNewGame();

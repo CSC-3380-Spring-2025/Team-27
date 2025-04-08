@@ -3,6 +3,7 @@
 #include "HorrorGameInstance.h"
 #include "HorrorSaveGame.h"
 #include "Components/AudioComponent.h"
+#include "GameFramework/Character.h"
 #include "Kismet/GameplayStatics.h"
 
 // all logic in header
@@ -29,20 +30,25 @@ void UHorrorGameInstance::SaveGameProgress()
     SaveGameInstance->bLoop5Complete = bLoop5Complete;
     SaveGameInstance->bLoop6Complete = bLoop6Complete;
 
-    const FString SlotName = TEXT("HorrorSaveSlot");
+    // save players position
+    ACharacter* PlayerChar = UGameplayStatics::GetPlayerCharacter(GetWorld(), 0);
+    if (PlayerChar)
+    {
+        SaveGameInstance->PlayerLocation = PlayerChar->GetActorLocation();
+        SaveGameInstance->PlayerRotation = PlayerChar->GetActorRotation();
+    }
 
+    const FString SlotName = TEXT("HorrorSaveSlot");
     bool bSuccess = UGameplayStatics::SaveGameToSlot(SaveGameInstance, SlotName, 0);
     if (bSuccess)
     {
-        UE_LOG(LogTemp, Warning, TEXT("Game Saved: Loop = %d | L1 = %s | L2 = %s | L3 = %s"),
-            CurrentLoopIndex,
-            bLoop1Complete ? TEXT("true") : TEXT("false"),
-            bLoop2Complete ? TEXT("true") : TEXT("false"),
-            bLoop3Complete ? TEXT("true") : TEXT("false"));
+        UE_LOG(LogTemp, Warning, TEXT("Game saved with position: %s | Rotation: %s"),
+            *SaveGameInstance->PlayerLocation.ToString(),
+            *SaveGameInstance->PlayerRotation.ToString());
 
         if (GEngine)
         {
-            GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Green, TEXT("Game Saved!"));
+            GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Green, TEXT("Game Saved!"));
         }
     }
     else
@@ -52,25 +58,24 @@ void UHorrorGameInstance::SaveGameProgress()
 }
 
 
-bool UHorrorGameInstance::LoadGameProgress()
+UHorrorSaveGame* UHorrorGameInstance::LoadGameAndReturn()
 {
     const FString SlotName = TEXT("HorrorSaveSlot");
 
     if (!UGameplayStatics::DoesSaveGameExist(SlotName, 0))
     {
         UE_LOG(LogTemp, Warning, TEXT("No save game found."));
-        return false;
+        return nullptr;
     }
 
     UHorrorSaveGame* LoadedGame = Cast<UHorrorSaveGame>(UGameplayStatics::LoadGameFromSlot(SlotName, 0));
-
     if (!LoadedGame)
     {
         UE_LOG(LogTemp, Error, TEXT("Failed to load save game object!"));
-        return false;
+        return nullptr;
     }
 
-    // Restore saved values
+    // Restore game instance values
     CurrentLoopIndex = LoadedGame->SavedLoopIndex;
     bLoop1Complete = LoadedGame->bLoop1Complete;
     bLoop2Complete = LoadedGame->bLoop2Complete;
@@ -79,18 +84,9 @@ bool UHorrorGameInstance::LoadGameProgress()
     bLoop5Complete = LoadedGame->bLoop5Complete;
     bLoop6Complete = LoadedGame->bLoop6Complete;
 
-    UE_LOG(LogTemp, Warning, TEXT("Game Loaded: Loop = %d | L1 = %s | L2 = %s | L3 = %s"),
-        CurrentLoopIndex,
-        bLoop1Complete ? TEXT("true") : TEXT("false"),
-        bLoop2Complete ? TEXT("true") : TEXT("false"),
-        bLoop3Complete ? TEXT("true") : TEXT("false"));
+    UE_LOG(LogTemp, Warning, TEXT("Game Loaded: Loop = %d"), CurrentLoopIndex);
 
-    if (GEngine)
-    {
-        GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Yellow, TEXT("Game Loaded!"));
-    }
-
-    return true;
+    return LoadedGame;
 }
 
 
@@ -128,7 +124,7 @@ void UHorrorGameInstance::ContinueGameWithTransition(UObject* WorldContextObject
         return;
     }
 
-    if (!LoadGameProgress())
+    if (!LoadGameAndReturn())
     {
         UE_LOG(LogTemp, Warning, TEXT("ContinueGameWithTransition failed: no save found."));
         return;

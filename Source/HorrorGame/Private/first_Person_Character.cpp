@@ -6,6 +6,7 @@
 #include "GameFramework/GameUserSettings.h"
 #include "Kismet/GameplayStatics.h"
 #include "HorrorGameInstance.h"
+#include "HorrorSaveGame.h"
 #include "GameFramework/GameModeBase.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Camera/PlayerCameraManager.h"
@@ -101,6 +102,25 @@ void Afirst_Person_Character::BeginPlay()
     GetCapsuleComponent()->SetCapsuleHalfHeight(CurrentCapsuleHeight);
     UpdateMovementSpeed();
 
+    // load saved player position (if available)
+    UHorrorGameInstance* GameInstance = Cast<UHorrorGameInstance>(UGameplayStatics::GetGameInstance(this));
+    if (GameInstance)
+    {
+        UHorrorSaveGame* LoadedGame = GameInstance->LoadGameAndReturn();
+        if (LoadedGame)
+        {
+            SetActorLocation(LoadedGame->PlayerLocation);
+            SetActorRotation(LoadedGame->PlayerRotation);
+
+            UE_LOG(LogTemp, Log, TEXT("Player loaded at position: %s | Rotation: %s"),
+                *LoadedGame->PlayerLocation.ToString(),
+                *LoadedGame->PlayerRotation.ToString());
+        }
+
+        int32 Loop = GameInstance->GetLoopIndex();
+        UE_LOG(LogTemp, Warning, TEXT("Current Loop: %d"), Loop);
+    }
+
     //Spawn an instance of the interaction system class
     Interaction_System = GetWorld()->SpawnActor<Ainteraction_System>(Ainteraction_System::StaticClass(), FVector::ZeroVector, FRotator::ZeroRotator);
 
@@ -119,17 +139,6 @@ void Afirst_Person_Character::BeginPlay()
             CrosshairWidget->AddToViewport(1);
         }
     }   
-
-    // NEW LOOP INIT LOGIC
-    UHorrorGameInstance* GameInstance = Cast<UHorrorGameInstance>(UGameplayStatics::GetGameInstance(this));
-    if (GameInstance)
-    {
-        int32 Loop = GameInstance->GetLoopIndex();
-        UE_LOG(LogTemp, Warning, TEXT("Current Loop: %d"), Loop);
-
-        // TODO: Add visual/audio changes based on the loop number
-        // if (Loop == 2) { Make hallway darker, flicker lights, etc. }
-    }
 
     // spawn the Blueprint version of the pause manager
     FActorSpawnParameters SpawnParams;
