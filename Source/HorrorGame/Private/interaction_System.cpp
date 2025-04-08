@@ -185,6 +185,8 @@ void Ainteraction_System::CompleteLoopDoor(Afirst_Person_Character* Character, A
         return;
     }
 
+    GI->bLoadFromSaveFile = false;
+
     // advance to next loop
     GI->AdvanceLoop();
     int32 NextLoop = GI->GetLoopIndex();

@@ -107,7 +107,7 @@ void Afirst_Person_Character::BeginPlay()
     if (GameInstance)
     {
         UHorrorSaveGame* LoadedGame = GameInstance->LoadGameAndReturn();
-        if (LoadedGame)
+        if (LoadedGame && GameInstance->bLoadFromSaveFile)
         {
             SetActorLocation(LoadedGame->PlayerLocation);
             SetActorRotation(LoadedGame->PlayerRotation);

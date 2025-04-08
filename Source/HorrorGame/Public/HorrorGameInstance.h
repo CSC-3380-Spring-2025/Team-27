@@ -84,14 +84,15 @@ public:
 	UPROPERTY(BlueprintReadWrite, Category = "PuzzleProgress")
 	bool bLoop6Complete = false;
 
-	// ...add more for each loop
-
 	// future save game progress implementation
 	UFUNCTION(BlueprintCallable)
 	void SaveGameProgress();
 
 	UFUNCTION(BlueprintCallable)
 	UHorrorSaveGame* LoadGameAndReturn();
+
+	UPROPERTY()
+	bool bLoadFromSaveFile = false;
 
 	UFUNCTION(BlueprintCallable, Category = "Loop")
 	void StartNewGame();

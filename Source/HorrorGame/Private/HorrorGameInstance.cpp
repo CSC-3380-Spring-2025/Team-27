@@ -124,6 +124,8 @@ void UHorrorGameInstance::ContinueGameWithTransition(UObject* WorldContextObject
         return;
     }
 
+    bLoadFromSaveFile = true;
+
     if (!LoadGameAndReturn())
     {
         UE_LOG(LogTemp, Warning, TEXT("ContinueGameWithTransition failed: no save found."));
