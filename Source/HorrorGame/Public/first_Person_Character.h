@@ -9,6 +9,7 @@
 #include "Components/PostProcessComponent.h"
 #include "Blueprint/UserWidget.h"
 #include "PauseManager.h"
+#include "CharacterAudioInstance.h"
 #include "interaction_System.h"
 #include "first_Person_Character.generated.h"
 
@@ -19,6 +20,24 @@ class HORRORGAME_API Afirst_Person_Character : public ACharacter
 
 public:
     Afirst_Person_Character();
+
+    UPROPERTY()
+    UCharacterAudioComponent* AudioComponent;
+
+    UPROPERTY(EditAnywhere, Category = "Audio")
+    float FootstepTraceDistance = 100.f;
+
+    UPROPERTY(EditAnywhere, Category = "Audio")
+    float WalkFootstepInterval = 0.5f;
+
+    UPROPERTY(EditAnywhere, Category = "Audio")
+    float SprintFootstepInterval = 0.35f;
+
+    UPROPERTY(EditAnywhere, Category = "Audio")
+    float CrouchFootstepInterval = 0.9f;
+
+    FTimerHandle FootstepTimerHandle;
+    void PlayFootstep(); // replaces old one using footstep arrays
 
 protected:
     virtual void BeginPlay() override;
@@ -154,6 +173,9 @@ private:
     void Vertic_Rot(float value);
     void UpdateMovementSpeed();
     float GetTargetFOV() const;
+
+    // MOVEMENT AUDIO
+    float CurrentFootstepInterval = 0.0f;
 
     // CROUCH FUNCTION/VARIABLE DECLARATIONS
     void SmoothCrouchTransition(float DeltaTime);
