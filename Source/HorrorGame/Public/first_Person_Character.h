@@ -174,6 +174,9 @@ private:
     void UpdateMovementSpeed();
     float GetTargetFOV() const;
 
+    // MOVEMENT AUDIO
+    float CurrentFootstepInterval = 0.0f;
+
     // CROUCH FUNCTION/VARIABLE DECLARATIONS
     void SmoothCrouchTransition(float DeltaTime);
 

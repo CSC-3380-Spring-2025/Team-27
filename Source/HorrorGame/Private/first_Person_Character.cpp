@@ -244,19 +244,30 @@ void Afirst_Person_Character::Tick(float DeltaTime)
     }
 
     // FOOTSTEP AUDIO TIMER
-    float Interval = WalkFootstepInterval;
-    if (bIsSprinting) Interval = SprintFootstepInterval;
-    else if (bWantsToCrouch) Interval = CrouchFootstepInterval;
+    float NewInterval = WalkFootstepInterval;
+    if (bIsSprinting) 
+        NewInterval = SprintFootstepInterval;
+    else if (bWantsToCrouch) 
+        NewInterval = CrouchFootstepInterval;
 
-    if (bIsMoving && !GetWorld()->GetTimerManager().IsTimerActive(FootstepTimerHandle))
+    if (bIsMoving)
     {
-        GetWorld()->GetTimerManager().SetTimer(FootstepTimerHandle, this, &Afirst_Person_Character::PlayFootstep, Interval, true);
+        if (!GetWorld()->GetTimerManager().IsTimerActive(FootstepTimerHandle) || FMath::Abs(NewInterval - CurrentFootstepInterval) > KINDA_SMALL_NUMBER)
+        {
+            // Restart the timer if interval has changed or wasn't running
+            GetWorld()->GetTimerManager().ClearTimer(FootstepTimerHandle);
+            CurrentFootstepInterval = NewInterval;
+            GetWorld()->GetTimerManager().SetTimer(FootstepTimerHandle, this, &Afirst_Person_Character::PlayFootstep, NewInterval, true);
+        }
     }
-    else if (!bIsMoving && GetWorld()->GetTimerManager().IsTimerActive(FootstepTimerHandle))
+    else
     {
-        GetWorld()->GetTimerManager().ClearTimer(FootstepTimerHandle);
+        if (GetWorld()->GetTimerManager().IsTimerActive(FootstepTimerHandle))
+        {
+            GetWorld()->GetTimerManager().ClearTimer(FootstepTimerHandle);
+        }
+        CurrentFootstepInterval = 0.0f;
     }
-
 }
 
 float Afirst_Person_Character::GetTargetFOV() const
