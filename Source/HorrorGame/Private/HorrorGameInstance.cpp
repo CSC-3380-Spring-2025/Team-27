@@ -2,8 +2,6 @@
 
 #include "HorrorGameInstance.h"
 #include "HorrorSaveGame.h"
-#include "Components/AudioComponent.h"
-#include "GameFramework/Character.h"
 #include "Kismet/GameplayStatics.h"
 
 // all logic in header
@@ -30,25 +28,20 @@ void UHorrorGameInstance::SaveGameProgress()
     SaveGameInstance->bLoop5Complete = bLoop5Complete;
     SaveGameInstance->bLoop6Complete = bLoop6Complete;
 
-    // save players position
-    ACharacter* PlayerChar = UGameplayStatics::GetPlayerCharacter(GetWorld(), 0);
-    if (PlayerChar)
-    {
-        SaveGameInstance->PlayerLocation = PlayerChar->GetActorLocation();
-        SaveGameInstance->PlayerRotation = PlayerChar->GetActorRotation();
-    }
-
     const FString SlotName = TEXT("HorrorSaveSlot");
+
     bool bSuccess = UGameplayStatics::SaveGameToSlot(SaveGameInstance, SlotName, 0);
     if (bSuccess)
     {
-        UE_LOG(LogTemp, Warning, TEXT("Game saved with position: %s | Rotation: %s"),
-            *SaveGameInstance->PlayerLocation.ToString(),
-            *SaveGameInstance->PlayerRotation.ToString());
+        UE_LOG(LogTemp, Warning, TEXT("Game Saved: Loop = %d | L1 = %s | L2 = %s | L3 = %s"),
+            CurrentLoopIndex,
+            bLoop1Complete ? TEXT("true") : TEXT("false"),
+            bLoop2Complete ? TEXT("true") : TEXT("false"),
+            bLoop3Complete ? TEXT("true") : TEXT("false"));
 
         if (GEngine)
         {
-            GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Green, TEXT("Game Saved!"));
+            GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Green, TEXT("Game Saved!"));
         }
     }
     else
@@ -58,24 +51,25 @@ void UHorrorGameInstance::SaveGameProgress()
 }
 
 
-UHorrorSaveGame* UHorrorGameInstance::LoadGameAndReturn()
+bool UHorrorGameInstance::LoadGameProgress()
 {
     const FString SlotName = TEXT("HorrorSaveSlot");
 
     if (!UGameplayStatics::DoesSaveGameExist(SlotName, 0))
     {
         UE_LOG(LogTemp, Warning, TEXT("No save game found."));
-        return nullptr;
+        return false;
     }
 
     UHorrorSaveGame* LoadedGame = Cast<UHorrorSaveGame>(UGameplayStatics::LoadGameFromSlot(SlotName, 0));
+
     if (!LoadedGame)
     {
         UE_LOG(LogTemp, Error, TEXT("Failed to load save game object!"));
-        return nullptr;
+        return false;
     }
 
-    // Restore game instance values
+    // Restore saved values
     CurrentLoopIndex = LoadedGame->SavedLoopIndex;
     bLoop1Complete = LoadedGame->bLoop1Complete;
     bLoop2Complete = LoadedGame->bLoop2Complete;
@@ -84,9 +78,18 @@ UHorrorSaveGame* UHorrorGameInstance::LoadGameAndReturn()
     bLoop5Complete = LoadedGame->bLoop5Complete;
     bLoop6Complete = LoadedGame->bLoop6Complete;
 
-    UE_LOG(LogTemp, Warning, TEXT("Game Loaded: Loop = %d"), CurrentLoopIndex);
+    UE_LOG(LogTemp, Warning, TEXT("Game Loaded: Loop = %d | L1 = %s | L2 = %s | L3 = %s"),
+        CurrentLoopIndex,
+        bLoop1Complete ? TEXT("true") : TEXT("false"),
+        bLoop2Complete ? TEXT("true") : TEXT("false"),
+        bLoop3Complete ? TEXT("true") : TEXT("false"));
 
-    return LoadedGame;
+    if (GEngine)
+    {
+        GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Yellow, TEXT("Game Loaded!"));
+    }
+
+    return true;
 }
 
 
@@ -108,71 +111,6 @@ void UHorrorGameInstance::StartNewGame()
 
     UE_LOG(LogTemp, Warning, TEXT("New Game started. Loop index and puzzle flags reset."));
 }
-
-void UHorrorGameInstance::ContinueGameWithTransition(UObject* WorldContextObject)
-{
-    if (!WorldContextObject)
-    {
-        UE_LOG(LogTemp, Error, TEXT("Invalid WorldContextObject passed to ContinueGameWithTransition"));
-        return;
-    }
-
-    UWorld* World = WorldContextObject->GetWorld();
-    if (!World)
-    {
-        UE_LOG(LogTemp, Error, TEXT("Failed to get World from WorldContextObject"));
-        return;
-    }
-
-    bLoadFromSaveFile = true;
-
-    if (!LoadGameAndReturn())
-    {
-        UE_LOG(LogTemp, Warning, TEXT("ContinueGameWithTransition failed: no save found."));
-        return;
-    }
-
-    // Stop or fade out the menu music (assuming it's tagged as "MenuMusic")
-    TArray<AActor*> MusicActors;
-    UGameplayStatics::GetAllActorsWithTag(World, TEXT("MenuMusic"), MusicActors);
-    for (AActor* Actor : MusicActors)
-    {
-        UAudioComponent* AudioComp = Actor->FindComponentByClass<UAudioComponent>();
-        if (AudioComp)
-        {
-            // Instantly stop or use fade-out
-            // AudioComp->Stop();
-            AudioComp->FadeOut(1.2f, 0.0f); // smoother exit
-        }
-    }
-
-    // Fade to black
-    APlayerController* PC = UGameplayStatics::GetPlayerController(World, 0);
-    const float FadeDuration = 1.6f;
-
-    if (PC && PC->PlayerCameraManager)
-    {
-        PC->PlayerCameraManager->StartCameraFade(0.f, 1.f, FadeDuration, FLinearColor::Black, false, true);
-    }
-
-    // Determine level to load
-    FString LevelName = FString::Printf(TEXT("Room%d?FadeFromMainMenu=true"), CurrentLoopIndex);
-
-    // Delay load until fade completes
-    FTimerHandle LoadLevelTimerHandle;
-    World->GetTimerManager().SetTimer(LoadLevelTimerHandle, [LevelName]()
-        {
-            UGameplayStatics::OpenLevel(GWorld, FName(*LevelName));
-        }, FadeDuration + 0.1f, false);
-}
-
-bool UHorrorGameInstance::IsSaveAvailable() const
-{
-    return UGameplayStatics::DoesSaveGameExist(TEXT("HorrorSaveSlot"), 0);
-}
-
-
-
 
 
 

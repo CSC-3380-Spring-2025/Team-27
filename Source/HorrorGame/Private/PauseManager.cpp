@@ -4,6 +4,7 @@
 #include "PauseManager.h"
 #include "Kismet/GameplayStatics.h"
 #include "GameFramework/PlayerController.h"
+#include "HorrorGameInstance.h"
 #include "Components/HorizontalBox.h"
 
 APauseManager::APauseManager()
@@ -120,6 +121,80 @@ void APauseManager::QuitToDesktop()
     if (PC)
     {
         UKismetSystemLibrary::QuitGame(GetWorld(), PC, EQuitPreference::Quit, false);
+    }
+}
+
+void APauseManager::ShowSettingsMenu()
+{
+    APlayerController* PC = UGameplayStatics::GetPlayerController(GetWorld(), 0);
+    if (!PC || !SettingsMenuClass) return;
+
+    // Prevent recreating the widget if it already exists
+    if (!SettingsMenuWidget)
+    {
+        SettingsMenuWidget = CreateWidget<UUserWidget>(PC, SettingsMenuClass);
+
+        if (SettingsMenuWidget)
+        {
+            // 1. Set PauseManagerRef (calls Blueprint's SetPauseManager)
+            FName SetPauseManagerFn = FName("SetPauseManager");
+            if (SettingsMenuWidget->GetClass()->FindFunctionByName(SetPauseManagerFn))
+            {
+                struct
+                {
+                    APauseManager* Manager;
+                } Params;
+                Params.Manager = this;
+
+                SettingsMenuWidget->ProcessEvent(SettingsMenuWidget->GetClass()->FindFunctionByName(SetPauseManagerFn), &Params);
+            }
+
+            // 2. Set bIsInGameContext (calls Blueprint's SetInGameContext)
+            FName SetInGameContextFn = FName("SetInGameContext");
+            if (SettingsMenuWidget->GetClass()->FindFunctionByName(SetInGameContextFn))
+            {
+                struct
+                {
+                    bool IsInGame;
+                } Params;
+                Params.IsInGame = true;
+
+                SettingsMenuWidget->ProcessEvent(SettingsMenuWidget->GetClass()->FindFunctionByName(SetInGameContextFn), &Params);
+            }
+
+            // 3. Add to viewport
+            SettingsMenuWidget->AddToViewport(200);
+        }
+    }
+
+    // Hide pause menu while settings is open
+    if (PauseMenuWidget)
+    {
+        PauseMenuWidget->SetVisibility(ESlateVisibility::Collapsed);
+    }
+}
+
+void APauseManager::ReturnToPauseMenu()
+{
+    if (SettingsMenuWidget)
+    {
+        SettingsMenuWidget->RemoveFromParent();
+        SettingsMenuWidget = nullptr;
+    }
+
+    if (PauseMenuWidget)
+    {
+        PauseMenuWidget->SetVisibility(ESlateVisibility::Visible);
+    }
+}
+
+void APauseManager::SaveGame()
+{
+    UHorrorGameInstance* GI = Cast<UHorrorGameInstance>(UGameplayStatics::GetGameInstance(GetWorld()));
+    if (GI)
+    {
+        GI->SaveGameProgress();
+        UE_LOG(LogTemp, Warning, TEXT("Save Game requested from Pause Menu"));      // check output log to see if the save worked
     }
 }
 

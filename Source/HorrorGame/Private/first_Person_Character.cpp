@@ -3,16 +3,37 @@
 #include "first_Person_Character.h"
 #include "Blueprint/UserWidget.h"
 #include "interaction_System.h"
+#include "GameFramework/GameUserSettings.h"
+#include "Kismet/GameplayStatics.h"
+#include "HorrorGameInstance.h"
+#include "GameFramework/GameModeBase.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Camera/PlayerCameraManager.h"
 #include "Components/PostProcessComponent.h"
 #include "Components/CapsuleComponent.h"
+
+
+/*
+    add this wherever a puzzle is triggered/completed (pickup, note, switch, etc)
+
+ * Example: when a puzzle is completed in this class
+    
+    UHorrorGameInstance* GI = Cast<UHorrorGameInstance>(UGameplayStatics::GetGameInstance(this));
+    if (GI && GI->GetLoopIndex() == 1)
+    {
+        GI->bLoop1Complete = true;
+        UE_LOG(LogTemp, Log, TEXT("Puzzle for Loop 1 completed!"));
+    }
+
+*/
 
 Afirst_Person_Character::Afirst_Person_Character()
 {
     PrimaryActorTick.bCanEverTick = true;
     AutoPossessPlayer = EAutoReceiveInput::Player0;
     bUseControllerRotationYaw = false;
+
+    RootComponent = GetCapsuleComponent();
 
     cam = CreateDefaultSubobject<UCameraComponent>(TEXT("Camera"));
     cam->SetupAttachment(RootComponent);
@@ -83,6 +104,12 @@ void Afirst_Person_Character::BeginPlay()
     //Spawn an instance of the interaction system class
     Interaction_System = GetWorld()->SpawnActor<Ainteraction_System>(Ainteraction_System::StaticClass(), FVector::ZeroVector, FRotator::ZeroRotator);
 
+    // apply user settings on game start
+    if (GEngine && GEngine->GetGameUserSettings())
+    {
+        GEngine->GetGameUserSettings()->ApplySettings(false); // false = dont restart settings, keep them throughout
+    }
+
     //add crosshair widget to viewpoint
     if (WB_CrosshairClass)
     {
@@ -93,19 +120,52 @@ void Afirst_Person_Character::BeginPlay()
         }
     }   
 
+    // NEW LOOP INIT LOGIC
+    UHorrorGameInstance* GameInstance = Cast<UHorrorGameInstance>(UGameplayStatics::GetGameInstance(this));
+    if (GameInstance)
+    {
+        int32 Loop = GameInstance->GetLoopIndex();
+        UE_LOG(LogTemp, Warning, TEXT("Current Loop: %d"), Loop);
+
+        // TODO: Add visual/audio changes based on the loop number
+        // if (Loop == 2) { Make hallway darker, flicker lights, etc. }
+    }
+
     // spawn the Blueprint version of the pause manager
     FActorSpawnParameters SpawnParams;
     SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 
     // use LoadClass to find the blueprint class
     UClass* PauseManagerBP = LoadClass<APauseManager>(nullptr, TEXT("/Game/Blueprints/BP_PauseManager.BP_PauseManager_C"));
-    PauseManager = PauseManagerBP ? GetWorld()->SpawnActor<APauseManager>(PauseManagerBP, FVector::ZeroVector, FRotator::ZeroRotator, SpawnParams) : GetWorld()->SpawnActor<APauseManager>(APauseManager::StaticClass(), FVector::ZeroVector, FRotator::ZeroRotator, SpawnParams);
+    PauseManager = PauseManagerBP ? GetWorld()->SpawnActor<APauseManager>(PauseManagerBP, FVector::ZeroVector, FRotator::ZeroRotator, SpawnParams) : nullptr;
 
     // load interaction data table
-    UDataTable* Interaction_Data_Table = LoadObject<UDataTable>(nullptr, TEXT("/Script/Engine.DataTable'/Game/InteractableDataTable.InteractableDataTable'"));
-    if (Interaction_Data_Table)
+    CachedInteractionDataTable = LoadObject<UDataTable>(nullptr, TEXT("/Script/Engine.DataTable'/Game/DataTables/InteractableDataTable.InteractableDataTable'"));
+    if (Interaction_System && CachedInteractionDataTable)
     {
-        Interaction_System->Init(Interaction_Data_Table);
+        Interaction_System->SetInteractionDataTable(CachedInteractionDataTable);
+        UE_LOG(LogTemp, Log, TEXT("Interaction Data Table Set Successfully"));
+    }
+    else
+    {
+        UE_LOG(LogTemp, Error, TEXT("Failed to load or assign Interaction Data Table!"));
+    }
+    APlayerController* PC = Cast<APlayerController>(GetController());
+    if (PC && PC->PlayerCameraManager)
+    {
+        FString OptionValue = UGameplayStatics::ParseOption(UGameplayStatics::GetGameMode(this)->OptionsString, TEXT("FadeFromMainMenu"));
+        if (OptionValue.Equals("true", ESearchCase::IgnoreCase))
+        {
+            // start fully black
+            PC->PlayerCameraManager->StartCameraFade(1.f, 1.f, 0.f, FLinearColor::Black, true, true);
+
+            // fade out from black after slight delay
+            FTimerHandle FadeInHandle;
+            GetWorld()->GetTimerManager().SetTimer(FadeInHandle, [PC]()
+                {
+                    PC->PlayerCameraManager->StartCameraFade(1.f, 0.f, 1.0f, FLinearColor::Black, false, true);
+                }, 0.1f, false); // change this so user waits 2 seconds on a black screen 
+        }
     }
 }
 
@@ -187,24 +247,24 @@ void Afirst_Person_Character::SetupPlayerInputComponent(UInputComponent* PlayerI
     Super::SetupPlayerInputComponent(PlayerInputComponent);
 
     // CAMERA INPUT (mouse)
-    InputComponent->BindAxis("Horizontal", this, &Afirst_Person_Character::Horizon_Move);
-    InputComponent->BindAxis("Vertical", this, &Afirst_Person_Character::Vertic_Move);
-    InputComponent->BindAxis("SideRotation", this, &Afirst_Person_Character::Horizon_Rot);
-    InputComponent->BindAxis("UpDownRotation", this, &Afirst_Person_Character::Vertic_Rot);
+    PlayerInputComponent->BindAxis("Horizontal", this, &Afirst_Person_Character::Horizon_Move);
+    PlayerInputComponent->BindAxis("Vertical", this, &Afirst_Person_Character::Vertic_Move);
+    PlayerInputComponent->BindAxis("SideRotation", this, &Afirst_Person_Character::Horizon_Rot);
+    PlayerInputComponent->BindAxis("UpDownRotation", this, &Afirst_Person_Character::Vertic_Rot);
 
     // SPRINT INPUT (Left Shift)
-    InputComponent->BindAction("Sprint", IE_Pressed, this, &Afirst_Person_Character::StartSprint);
-    InputComponent->BindAction("Sprint", IE_Released, this, &Afirst_Person_Character::StopSprint);
+    PlayerInputComponent->BindAction("Sprint", IE_Pressed, this, &Afirst_Person_Character::StartSprint);
+    PlayerInputComponent->BindAction("Sprint", IE_Released, this, &Afirst_Person_Character::StopSprint);
 
     // CROUCH INPUT (Left CTRL)
-    InputComponent->BindAction("Crouch", IE_Pressed, this, &Afirst_Person_Character::BeginCrouch);
-    InputComponent->BindAction("Crouch", IE_Released, this, &Afirst_Person_Character::EndCrouch);
+    PlayerInputComponent->BindAction("Crouch", IE_Pressed, this, &Afirst_Person_Character::BeginCrouch);
+    PlayerInputComponent->BindAction("Crouch", IE_Released, this, &Afirst_Person_Character::EndCrouch);
     
     // INTERACT INPUT (e)
-    InputComponent->BindAction("InteractTest", IE_Pressed, this, &Afirst_Person_Character::Interact);
+    PlayerInputComponent->BindAction("InteractTest", IE_Pressed, this, &Afirst_Person_Character::Interact);
 
     // PAUSE MENU INPUT (Escape)
-    InputComponent->BindAction("PauseGame", IE_Pressed, this, &Afirst_Person_Character::TogglePause);
+    PlayerInputComponent->BindAction("PauseGame", IE_Pressed, this, &Afirst_Person_Character::TogglePause);
 }
 
 void Afirst_Person_Character::Horizon_Move(float value)
@@ -367,37 +427,40 @@ void Afirst_Person_Character::StartDoorTransition(const FVector& TargetLocation)
     APlayerController* PC = Cast<APlayerController>(GetController());
     if (!PC || !PC->PlayerCameraManager) return;
 
-    const float FadeDuration = 0.5f;
+    // Use configurable property
+    const float FadeDuration = TeleportFadeDuration;
     const float TotalTransitionTime = FadeDuration * 2.0f;
 
-    // fade to black
+    // Fade to black
     PC->PlayerCameraManager->StartCameraFade(0.f, 1.f, FadeDuration, FLinearColor::Black, false, true);
 
-    // freeze the player input
+    // Freeze input
     PC->SetIgnoreMoveInput(true);
     PC->SetIgnoreLookInput(true);
 
-    // initiate teleportation and fade back in
+    // Create weak pointers for capture safety
+    TWeakObjectPtr<Afirst_Person_Character> WeakThis(this);
+    TWeakObjectPtr<APlayerController> WeakPC(PC);
+
+    // Teleport after fade-out delay
     FTimerHandle TransitionTimerHandle;
-    GetWorld()->GetTimerManager().SetTimer(TransitionTimerHandle, [this, TargetLocation, PC, FadeDuration]()
+    GetWorld()->GetTimerManager().SetTimer(TransitionTimerHandle, [WeakThis, TargetLocation, WeakPC, FadeDuration]()
         {
-            this->SetActorLocation(TargetLocation);
-
-            if (PC && PC->PlayerCameraManager)
+            if (WeakThis.IsValid() && WeakPC.IsValid() && WeakPC->PlayerCameraManager)
             {
-                PC->PlayerCameraManager->StartCameraFade(1.f, 0.f, FadeDuration, FLinearColor::Black, false, false);
+                WeakThis->SetActorLocation(TargetLocation);
+                WeakPC->PlayerCameraManager->StartCameraFade(1.f, 0.f, FadeDuration, FLinearColor::Black, false, false);
             }
-
         }, FadeDuration, false);
 
-    // unfreeze input after fade 
+    // Unfreeze input after the total transition time
     FTimerHandle InputUnfreezeHandle;
-    GetWorld()->GetTimerManager().SetTimer(InputUnfreezeHandle, [PC]()
+    GetWorld()->GetTimerManager().SetTimer(InputUnfreezeHandle, [WeakPC]()
         {
-            if (PC)
+            if (WeakPC.IsValid())
             {
-                PC->SetIgnoreMoveInput(false);
-                PC->SetIgnoreLookInput(false);
+                WeakPC->SetIgnoreMoveInput(false);
+                WeakPC->SetIgnoreLookInput(false);
             }
         }, TotalTransitionTime, false);
 }

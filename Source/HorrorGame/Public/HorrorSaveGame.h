@@ -19,12 +19,6 @@ public:
     int32 SavedLoopIndex;
 
     UPROPERTY()
-    FVector PlayerLocation;
-
-    UPROPERTY()
-    FRotator PlayerRotation;
-
-    UPROPERTY()
     bool bLoop1Complete;
 
     UPROPERTY()

@@ -4,8 +4,6 @@
 
 #include "CoreMinimal.h"
 #include "Engine/GameInstance.h"
-#include "Kismet/GameplayStatics.h"
-#include "TimerManager.h"
 #include "HorrorGameInstance.generated.h"
 
 /**
@@ -30,9 +28,6 @@
  * see 'Complete_Loop_Door()' in interaction_System.cpp for door logic
  * 
  */
-
-class UHorrorSaveGame;
-
 UCLASS()
 class HORRORGAME_API UHorrorGameInstance : public UGameInstance
 {
@@ -84,25 +79,17 @@ public:
 	UPROPERTY(BlueprintReadWrite, Category = "PuzzleProgress")
 	bool bLoop6Complete = false;
 
+	// ...add more for each loop
+
 	// future save game progress implementation
 	UFUNCTION(BlueprintCallable)
 	void SaveGameProgress();
 
 	UFUNCTION(BlueprintCallable)
-	UHorrorSaveGame* LoadGameAndReturn();
-
-	UPROPERTY()
-	bool bLoadFromSaveFile = false;
+	bool LoadGameProgress();
 
 	UFUNCTION(BlueprintCallable, Category = "Loop")
 	void StartNewGame();
-
-	UFUNCTION(BlueprintCallable, Category = "Loop", meta = (WorldContext = "WorldContextObject"))
-	void ContinueGameWithTransition(UObject* WorldContextObject);
-
-	UFUNCTION(BlueprintCallable, Category = "Save")
-	bool IsSaveAvailable() const;
-
 
 
 	
