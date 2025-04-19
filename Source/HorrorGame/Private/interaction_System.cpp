@@ -3,17 +3,17 @@
 #include "interaction_System.h"
 #include "Engine/World.h"
 #include "first_Person_Character.h"
-#include "HorrorGameInstance.h"
-#include "Kismet/KismetSystemLibrary.h"
+#include "Kismet/KismetMathLibrary.h"
+#include "Camera/CameraComponent.h"
+#include "Components/WidgetComponent.h"
 #include "Kismet/GameplayStatics.h"
-#include "Engine/TargetPoint.h"
 #include "HorrorGameInstance.h"
 #include "DrawDebugHelpers.h"
 #include "interactable_Data_Table.h"
 
 Ainteraction_System::Ainteraction_System()
 {
-    PrimaryActorTick.bCanEverTick = false;
+    PrimaryActorTick.bCanEverTick = true;
 
     TeleportTargetTag = FName(TEXT("MainRoomSpawn"));
 }
@@ -22,6 +22,49 @@ void Ainteraction_System::BeginPlay()
 {
     Super::BeginPlay();
     InitInteractionFunctionMap();
+}
+
+void Ainteraction_System::Tick(float DeltaTime)
+{
+    Super::Tick(DeltaTime);
+
+    Afirst_Person_Character* Character = Cast<Afirst_Person_Character>(GetWorld()->GetFirstPlayerController()->GetPawn());
+    if (!Character) return;
+
+    FHitResult Hit;
+    AActor* Current = LineTraceFromCamera(Character, Hit);
+
+    if (LastHitActor && LastHitActor != Current)
+    {
+        WidgetPrompt(Character, LastHitActor, false);
+    }
+
+    if (Current)
+    {
+        UE_LOG(LogTemp, Log, TEXT("Tick Trace hit: %s"), *Current->GetName());
+        WidgetPrompt(Character, Current, true);
+    }
+
+    LastHitActor = Current;
+    UE_LOG(LogTemp, Log, TEXT("Tick Trace hit: nothing"));
+}
+
+AActor* Ainteraction_System::LineTraceFromCamera(Afirst_Person_Character* Character, FHitResult& Hit)
+{
+    if (!Character || !Character->cam) return nullptr;
+
+    FVector Start = Character->cam->GetComponentLocation();
+    FVector End = Start + (Character->cam->GetForwardVector() * Character->InteractionDistance);
+
+    FCollisionQueryParams Params;
+    Params.AddIgnoredActor(Character);
+
+    if (GetWorld()->LineTraceSingleByChannel(Hit, Start, End, ECC_Visibility, Params))
+    {
+        return Hit.GetActor();
+    }
+
+    return nullptr;
 }
 
 void Ainteraction_System::InitInteractionFunctionMap()
@@ -35,21 +78,19 @@ void Ainteraction_System::InitInteractionFunctionMap()
 
 void Ainteraction_System::Interact(Afirst_Person_Character* Character)
 {
-    if (!Character) return;
-
-    FVector Start = Character->cam->GetComponentLocation();
-    FVector End = Start + (Character->cam->GetForwardVector() * Character->InteractionDistance); // FIXED: using property, not hardcoded
+    if (!Character || !Character->cam) return;
 
     FHitResult Hit;
-    FCollisionQueryParams Params;
-    Params.AddIgnoredActor(Character);
+    AActor* HitActor = LineTraceFromCamera(Character, Hit);
 
-    if (GetWorld()->LineTraceSingleByChannel(Hit, Start, End, ECC_Visibility, Params))
+    if (HitActor)
     {
-        if (Hit.GetActor())
-        {
-            Perform_Interaction(Character, Hit.GetActor());
-        }
+        Perform_Interaction(Character, HitActor);
+    }
+    else
+    {
+        UE_LOG(LogTemp, Warning, TEXT("Interact: No valid actor hit."));
+        return;
     }
 }
 
@@ -93,6 +134,23 @@ void Ainteraction_System::Perform_Interaction(Afirst_Person_Character* Character
     }
 
     UE_LOG(LogTemp, Warning, TEXT("Interaction failed: No matching tag logic found for actor: %s"), *HitActor->GetName());
+}
+
+void Ainteraction_System::WidgetPrompt(Afirst_Person_Character* Character, AActor* HitActor, bool Visibility)
+{
+    if (!HitActor) return;
+
+    UWidgetComponent* Widget = HitActor->FindComponentByClass<UWidgetComponent>();
+    if (Widget)
+    {
+        FVector WidgetLocation = Widget->GetComponentLocation();
+        FVector CameraLocation = Character->cam->GetComponentLocation();
+
+        FRotator WidgetRotation = UKismetMathLibrary::FindLookAtRotation(WidgetLocation, CameraLocation);
+        Widget->SetWorldRotation(WidgetRotation);
+
+        Widget->SetVisibility(Visibility);
+    }
 }
 
 void Ainteraction_System::Pickup_Object(Afirst_Person_Character* Character, AActor* HitActor)
