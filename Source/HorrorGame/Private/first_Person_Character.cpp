@@ -44,6 +44,15 @@ Afirst_Person_Character::Afirst_Person_Character()
     PostProcessComponent->SetupAttachment(RootComponent);
     PostProcessComponent->bUnbound = true;
 
+    // flashlight component
+    Flashlight = CreateDefaultSubobject<USpotLightComponent>(TEXT("Flashlight"));
+    Flashlight->SetupAttachment(cam);
+    Flashlight->SetVisibility(false);
+    Flashlight->SetIntensity(5000.0f);
+    Flashlight->SetInnerConeAngle(20.0f);
+    Flashlight->SetOuterConeAngle(35.0f);
+    Flashlight->SetAttenuationRadius(1000.0f);
+
     //basic movements speeds
     DefaultMaxWalkingSpeed = 150.0f;
     SprintSpeedMultiplier = 1.45f;
@@ -263,6 +272,9 @@ void Afirst_Person_Character::SetupPlayerInputComponent(UInputComponent* PlayerI
     // INTERACT INPUT (e)
     PlayerInputComponent->BindAction("InteractTest", IE_Pressed, this, &Afirst_Person_Character::Interact);
 
+    // FLASHLIGHT INPUT (f)
+    PlayerInputComponent->BindAction("ToggleFlashlight", IE_Pressed, this, &Afirst_Person_Character::ToggleFlashlight);
+
     // PAUSE MENU INPUT (Escape)
     PlayerInputComponent->BindAction("PauseGame", IE_Pressed, this, &Afirst_Person_Character::TogglePause);
 }
@@ -281,6 +293,16 @@ void Afirst_Person_Character::Vertic_Move(float value)
     {
         AddMovementInput(GetActorForwardVector(), value);
     }
+}
+
+void Afirst_Person_Character::ToggleFlashlight()
+{
+    if (!bHasFlashlight || !Flashlight) return;
+
+    bFlashlightOn = !bFlashlightOn;
+    Flashlight->SetVisibility(bFlashlightOn);
+
+    UE_LOG(LogTemp, Log, TEXT("Flashlight toggled: %s"), bFlashlightOn ? TEXT("On") : TEXT("Off"));
 }
 
 void Afirst_Person_Character::TogglePause()
