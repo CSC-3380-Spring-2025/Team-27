@@ -15,6 +15,16 @@ class HORRORGAME_API UHorrorSaveGame : public USaveGame
 	GENERATED_BODY()
 
 public:
+
+    UPROPERTY()
+    FVector PlayerLocation;
+
+    UPROPERTY()
+    FRotator PlayerRotation;
+
+    UPROPERTY()
+    TArray<FName> InteractedTags;
+
     UPROPERTY()
     int32 SavedLoopIndex;
 

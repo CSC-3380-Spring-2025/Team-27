@@ -2,6 +2,7 @@
 
 #include "HorrorGameInstance.h"
 #include "HorrorSaveGame.h"
+#include "first_Person_Character.h"
 #include "Kismet/GameplayStatics.h"
 
 // all logic in header
@@ -28,8 +29,19 @@ void UHorrorGameInstance::SaveGameProgress()
     SaveGameInstance->bLoop5Complete = bLoop5Complete;
     SaveGameInstance->bLoop6Complete = bLoop6Complete;
 
-    const FString SlotName = TEXT("HorrorSaveSlot");
+    APlayerController* PC = UGameplayStatics::GetPlayerController(GetWorld(), 0);
+    if (PC)
+    {
+        Afirst_Person_Character* Player = Cast<Afirst_Person_Character>(PC->GetPawn());
+        if (Player)
+        {
+            SaveGameInstance->PlayerLocation = Player->GetActorLocation();
+            SaveGameInstance->PlayerRotation = Player->GetActorRotation();
+        }
+    }
+    SaveGameInstance->InteractedTags = InteractedTags.Array();
 
+    const FString SlotName = TEXT("HorrorSaveSlot");
     bool bSuccess = UGameplayStatics::SaveGameToSlot(SaveGameInstance, SlotName, 0);
     if (bSuccess)
     {
@@ -77,6 +89,19 @@ bool UHorrorGameInstance::LoadGameProgress()
     bLoop4Complete = LoadedGame->bLoop4Complete;
     bLoop5Complete = LoadedGame->bLoop5Complete;
     bLoop6Complete = LoadedGame->bLoop6Complete;
+
+    InteractedTags = TSet<FName>(LoadedGame->InteractedTags);
+
+    APlayerController* PC = UGameplayStatics::GetPlayerController(GetWorld(), 0);
+    if (PC)
+    {
+        Afirst_Person_Character* Player = Cast<Afirst_Person_Character>(PC->GetPawn());
+        if (Player)
+        {
+            Player->SetActorLocation(LoadedGame->PlayerLocation);
+            Player->SetActorRotation(LoadedGame->PlayerRotation);
+        }
+    }
 
     UE_LOG(LogTemp, Warning, TEXT("Game Loaded: Loop = %d | L1 = %s | L2 = %s | L3 = %s"),
         CurrentLoopIndex,

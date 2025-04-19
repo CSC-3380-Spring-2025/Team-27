@@ -168,6 +168,12 @@ void Ainteraction_System::PickupFlashlight(Afirst_Person_Character* Character, A
 
     HitActor->Destroy();
     UE_LOG(LogTemp, Log, TEXT("Flashlight picked up."));
+
+    UHorrorGameInstance* GI = Cast<UHorrorGameInstance>(UGameplayStatics::GetGameInstance(Character));
+    if (GI && HitActor->Tags.Num() > 0)
+    {
+        GI->MarkTagInteracted(HitActor->Tags[0]);
+    }
 }
 
 void Ainteraction_System::Pickup_Object(Afirst_Person_Character* Character, AActor* HitActor)
@@ -262,6 +268,11 @@ void Ainteraction_System::CollectLoop1Key(Afirst_Person_Character* Character, AA
         GI->bLoop1Complete = true;
         HitActor->Destroy();
         UE_LOG(LogTemp, Warning, TEXT("Loop 1 Key Collected!"));
+
+        if (HitActor->Tags.Num() > 0)
+        {
+            GI->MarkTagInteracted(HitActor->Tags[0]);
+        }
     }
 }
 

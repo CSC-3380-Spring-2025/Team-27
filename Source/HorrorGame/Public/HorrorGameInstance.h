@@ -85,6 +85,15 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void SaveGameProgress();
 
+	UPROPERTY()
+	TSet<FName> InteractedTags;
+
+	UFUNCTION(BlueprintCallable)
+	void MarkTagInteracted(FName Tag) { InteractedTags.Add(Tag); }
+
+	UFUNCTION(BlueprintCallable)
+	bool HasInteractedWith(FName Tag) const { return InteractedTags.Contains(Tag); }
+
 	UFUNCTION(BlueprintCallable)
 	bool LoadGameProgress();
 

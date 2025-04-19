@@ -174,6 +174,11 @@ void Afirst_Person_Character::BeginPlay()
                 {
                     PC->PlayerCameraManager->StartCameraFade(1.f, 0.f, 1.0f, FLinearColor::Black, false, true);
                 }, 0.1f, false); // change this so user waits 2 seconds on a black screen 
+            UHorrorGameInstance* GI = Cast<UHorrorGameInstance>(UGameplayStatics::GetGameInstance(this));
+            if (GI)
+            {
+                GI->LoadGameProgress(); // this will auto-apply location + flags
+            }
         }
     }
 }
