@@ -57,6 +57,7 @@ private:
 	void View_Note(Afirst_Person_Character* Character, AActor* HitActor);
 	void CollectLoop1Key(Afirst_Person_Character* Character, AActor* HitActor);
 	void CompleteLoopDoor(Afirst_Person_Character* Character, AActor* HitActor);
+	void PickupFlashlight(Afirst_Person_Character* Character, AActor* HitActor);
 
 	void TeleportUsingDataTable(Afirst_Person_Character* Character, AActor* HitActor);
 	void WidgetPrompt(Afirst_Person_Character* Character, AActor* HitActor, bool Visibility);

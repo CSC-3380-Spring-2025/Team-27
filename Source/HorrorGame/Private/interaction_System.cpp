@@ -73,6 +73,7 @@ void Ainteraction_System::InitInteractionFunctionMap()
     Interaction_Functions.Add(FName(TEXT("ExitDoor")), &Ainteraction_System::CompleteLoopDoor);
     Interaction_Functions.Add(FName(TEXT("Loop1Key")), &Ainteraction_System::CollectLoop1Key);
     Interaction_Functions.Add("TeleportToMainRoom", &Ainteraction_System::TeleportUsingDataTable); // uses the DataTable
+    Interaction_Functions.Add(FName(TEXT("PickupFlashlight")), &Ainteraction_System::PickupFlashlight);
 
 }
 
@@ -151,6 +152,22 @@ void Ainteraction_System::WidgetPrompt(Afirst_Person_Character* Character, AActo
 
         Widget->SetVisibility(Visibility);
     }
+}
+
+void Ainteraction_System::PickupFlashlight(Afirst_Person_Character* Character, AActor* HitActor)
+{
+    if (!Character || !HitActor) return;
+
+    Character->bHasFlashlight = true;
+
+    if (Character->Flashlight)
+    {
+        Character->Flashlight->SetVisibility(false);
+        Character->bFlashlightOn = false;
+    }
+
+    HitActor->Destroy();
+    UE_LOG(LogTemp, Log, TEXT("Flashlight picked up."));
 }
 
 void Ainteraction_System::Pickup_Object(Afirst_Person_Character* Character, AActor* HitActor)

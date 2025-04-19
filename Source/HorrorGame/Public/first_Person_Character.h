@@ -7,6 +7,7 @@
 #include "Components/InputComponent.h"
 #include "Camera/CameraComponent.h"
 #include "Components/PostProcessComponent.h"
+#include "Components/SpotLightComponent.h"
 #include "Blueprint/UserWidget.h"
 #include "PauseManager.h"
 #include "interaction_System.h"
@@ -53,6 +54,17 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Transition")
     float TeleportDelayTime = 0.6f;
 
+    // FLASHLIGHT FEATURE
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Flashlight")
+    class USpotLightComponent* Flashlight;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Flashlight")
+    bool bHasFlashlight = false;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Flashlight")
+    bool bFlashlightOn = false;
+
+    void ToggleFlashlight();
 
 private:
     // FOV CAMERA TRANSITION FEATURE
