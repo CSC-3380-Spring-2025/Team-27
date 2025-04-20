@@ -8,6 +8,7 @@
 #include "HorrorGameInstance.h"
 #include "GameFramework/GameModeBase.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "PhysicalMaterials/PhysicalMaterial.h"
 #include "Camera/PlayerCameraManager.h"
 #include "Components/PostProcessComponent.h"
 #include "Components/CapsuleComponent.h"
@@ -38,6 +39,11 @@ Afirst_Person_Character::Afirst_Person_Character()
     cam = CreateDefaultSubobject<UCameraComponent>(TEXT("Camera"));
     cam->SetupAttachment(RootComponent);
     cam->SetRelativeLocation(FVector(0, 0, 40));
+
+    //TEMPORARY COMMENT, STILL TESTING REIMPLIMENTATION
+    /*
+    * AudioComponent = CreateDefaultSubobject<UCharacterAudioComponent>(TEXT("AudioComponent"));
+    */
 
     //post process component
     PostProcessComponent = CreateDefaultSubobject<UPostProcessComponent>(TEXT("PostProcessComponent"));
@@ -105,6 +111,13 @@ Afirst_Person_Character::Afirst_Person_Character()
 void Afirst_Person_Character::BeginPlay()
 {
     Super::BeginPlay();
+
+    //TEMPORARY COMMENT, STILL TESTING REIMPLIMENTATION
+    /*if (AudioComponent)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("Manual test: Playing wood footstep sound (SurfaceType1)"));
+        AudioComponent->PlayFootstep(EPhysicalSurface::SurfaceType1, GetActorLocation());
+    } */
 
     CurrentCapsuleHeight = StandingCapsuleHalfHeight;
     GetCapsuleComponent()->SetCapsuleHalfHeight(CurrentCapsuleHeight);
@@ -187,6 +200,10 @@ void Afirst_Person_Character::Tick(float DeltaTime)
 {
     Super::Tick(DeltaTime);
 
+    //TEMPORARY COMMENT, STILL TESTING REIMPLIMENTATION
+    /*float Speed = GetVelocity().Size();
+    bool bIsMoving = Speed > 10.0f;*/
+
     // adjust FOV based on movement state
     if (bIsSprinting && !bWantsToCrouch && !bIsExhausted)
     {
@@ -235,6 +252,23 @@ void Afirst_Person_Character::Tick(float DeltaTime)
         Settings.bOverride_VignetteIntensity = true;
         Settings.VignetteIntensity = FMath::FInterpTo(Settings.VignetteIntensity, TargetVignetteIntensity, DeltaTime, VFXTransitionSpeed);
     }
+
+    //TEMPORARY COMMENT, STILL TESTING REIMPLIMENTATION
+
+    // FOOTSTEP AUDIO TIMER
+    /*float Interval = WalkFootstepInterval;
+    if (bIsSprinting) Interval = SprintFootstepInterval;
+    else if (bWantsToCrouch) Interval = CrouchFootstepInterval;
+
+    if (bIsMoving && !GetWorld()->GetTimerManager().IsTimerActive(FootstepTimerHandle))
+    {
+        GetWorld()->GetTimerManager().SetTimer(FootstepTimerHandle, this, &Afirst_Person_Character::PlayFootstep, Interval, true);
+    }
+    else if (!bIsMoving && GetWorld()->GetTimerManager().IsTimerActive(FootstepTimerHandle))
+    {
+        GetWorld()->GetTimerManager().ClearTimer(FootstepTimerHandle);
+    }*/
+
 }
 
 float Afirst_Person_Character::GetTargetFOV() const
@@ -245,6 +279,49 @@ float Afirst_Person_Character::GetTargetFOV() const
         return CrouchFOV;
     return DefaultFOV;
 }
+
+//TEMPORARY COMMENT, STILL TESTING REIMPLIMENTATION
+
+//void Afirst_Person_Character::PlayFootstep()
+//{
+//    if (!GetCharacterMovement()->IsMovingOnGround()) return;
+//
+//    float HalfHeight = GetCapsuleComponent()->GetScaledCapsuleHalfHeight();
+//    FVector Start = GetActorLocation() - FVector(0, 0, HalfHeight - 1.f);
+//    FVector End = Start - FVector(0, 0, FootstepTraceDistance);
+//
+//    DrawDebugLine(GetWorld(), Start, End, FColor::Red, false, 1.0f, 0, 2.0f);
+//
+//    FHitResult Hit;
+//    FCollisionQueryParams Params(FName("FootstepTrace"), false, this);
+//    Params.bReturnPhysicalMaterial = true;
+//
+//    if (GetWorld()->LineTraceSingleByChannel(Hit, Start, End, ECC_Visibility, Params))
+//    {
+//        UPhysicalMaterial* PhysMat = Hit.PhysMaterial.Get();
+//        EPhysicalSurface SurfaceType = UPhysicalMaterial::DetermineSurfaceType(PhysMat);
+//
+//        float Pitch = 1.0f;
+//        if (bIsSprinting)
+//            Pitch = 1.2f;
+//        else if (bWantsToCrouch)
+//            Pitch = 0.85f;
+//
+//        if (AudioComponent)
+//        {
+//            AudioComponent->PlayFootstep(SurfaceType, Hit.ImpactPoint, Pitch);
+//        }
+//
+//        UE_LOG(LogTemp, Warning, TEXT("Surface Hit: %d | PhysMaterial: %s | Actor: %s"),
+//            (int32)SurfaceType,
+//            PhysMat ? *PhysMat->GetName() : TEXT("None"),
+//            Hit.GetActor() ? *Hit.GetActor()->GetName() : TEXT("None"));
+//    }
+//    else
+//    {
+//        UE_LOG(LogTemp, Warning, TEXT("Footstep line trace missed."));
+//    }
+//}
 
 void Afirst_Person_Character::UpdateMovementSpeed()
 {

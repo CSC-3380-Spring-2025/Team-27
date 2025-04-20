@@ -10,6 +10,7 @@
 #include "Components/SpotLightComponent.h"
 #include "Blueprint/UserWidget.h"
 #include "PauseManager.h"
+#include "CharacterAudioInstance.h"
 #include "interaction_System.h"
 #include "first_Person_Character.generated.h"
 
@@ -26,6 +27,27 @@ protected:
 
     UPROPERTY()
     UDataTable* CachedInteractionDataTable;
+
+    //TEMPORARY COMMENT, STILL TESTING REIMPLIMENTATION
+    /*
+    UPROPERTY()
+    UCharacterAudioComponent* AudioComponent;
+
+    UPROPERTY(EditAnywhere, Category = "Audio")
+    float FootstepTraceDistance = 100.f;
+
+    UPROPERTY(EditAnywhere, Category = "Audio")
+    float WalkFootstepInterval = 0.5f;
+
+    UPROPERTY(EditAnywhere, Category = "Audio")
+    float SprintFootstepInterval = 0.35f;
+
+    UPROPERTY(EditAnywhere, Category = "Audio")
+    float CrouchFootstepInterval = 0.9f;
+
+    FTimerHandle FootstepTimerHandle;
+    void PlayFootstep(); */
+    // replaces old one using footstep arrays -carter
 
 public:
     virtual void Tick(float DeltaTime) override;
