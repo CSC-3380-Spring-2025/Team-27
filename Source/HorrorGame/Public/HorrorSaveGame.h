@@ -29,6 +29,12 @@ public:
     int32 SavedLoopIndex;
 
     UPROPERTY()
+    int32 SavedBatteryLevel;
+
+    UPROPERTY()
+    bool bHasPickedUpFlashlight = false;
+
+    UPROPERTY()
     bool bLoop1Complete;
 
     UPROPERTY()
