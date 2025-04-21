@@ -46,7 +46,6 @@ void Ainteraction_System::Tick(float DeltaTime)
     }
 
     LastHitActor = Current;
-    UE_LOG(LogTemp, Log, TEXT("Tick Trace hit: nothing"));
 }
 
 AActor* Ainteraction_System::LineTraceFromCamera(Afirst_Person_Character* Character, FHitResult& Hit)
@@ -73,7 +72,7 @@ void Ainteraction_System::InitInteractionFunctionMap()
     Interaction_Functions.Add(FName(TEXT("ExitDoor")), &Ainteraction_System::CompleteLoopDoor);
     Interaction_Functions.Add(FName(TEXT("Loop1Key")), &Ainteraction_System::CollectLoop1Key);
     Interaction_Functions.Add("TeleportToMainRoom", &Ainteraction_System::TeleportUsingDataTable); // uses the DataTable
-    Interaction_Functions.Add(FName(TEXT("PickupFlashlight")), &Ainteraction_System::PickupFlashlight);
+    Interaction_Functions.Add(FName(TEXT("Pickup_Object")), &Ainteraction_System::Pickup_Object);
 
 }
 
@@ -116,7 +115,7 @@ void Ainteraction_System::Perform_Interaction(Afirst_Person_Character* Character
         if (Row)
         {
             const FName& FunctionName = Row->Interactable_Function;
-
+            UE_LOG(LogTemp, Log, TEXT("Found function: %s"), *FunctionName.ToString());
             if (Interaction_Functions.Contains(FunctionName))
             {
                 UE_LOG(LogTemp, Log, TEXT("Performing interaction for tag '%s' using function '%s'"), *Tag.ToString(), *FunctionName.ToString());
@@ -154,31 +153,31 @@ void Ainteraction_System::WidgetPrompt(Afirst_Person_Character* Character, AActo
     }
 }
 
-void Ainteraction_System::PickupFlashlight(Afirst_Person_Character* Character, AActor* HitActor)
+
+void Ainteraction_System::Pickup_Object(Afirst_Person_Character* Character, AActor* HitActor)
 {
     if (!Character || !HitActor) return;
 
-    Character->bHasFlashlight = true;
+    TSubclassOf<AActor> Item = HitActor->GetClass();
+    FName Tag = HitActor->Tags.IsValidIndex(0) ? HitActor->Tags[0] : NAME_None;
+    Character->StoredItemScale = HitActor->GetActorScale3D();
 
-    if (Character->Flashlight)
-    {
-        Character->Flashlight->SetVisibility(false);
-        Character->bFlashlightOn = false;
-    }
+    Character->Inventory.Add(Item);
+    Character->InventoryTags.Add(Tag);
 
-    HitActor->Destroy();
-    UE_LOG(LogTemp, Log, TEXT("Flashlight picked up."));
+    Character->CurrentItem = Item;
+    Character->CurrentItemTag = Tag;
+    Character->CurrentIndex = Character->Inventory.Num() - 1;
+
+    UE_LOG(LogTemp, Log, TEXT("Item '%s' added to inventory."), *HitActor->GetName());
 
     UHorrorGameInstance* GI = Cast<UHorrorGameInstance>(UGameplayStatics::GetGameInstance(Character));
     if (GI && HitActor->Tags.Num() > 0)
     {
         GI->MarkTagInteracted(HitActor->Tags[0]);
     }
-}
 
-void Ainteraction_System::Pickup_Object(Afirst_Person_Character* Character, AActor* HitActor)
-{
-    UE_LOG(LogTemp, Log, TEXT("Picked up an object!"));
+    HitActor->Destroy();
 }
 
 void Ainteraction_System::TeleportUsingDataTable(Afirst_Person_Character* Character, AActor* HitActor)

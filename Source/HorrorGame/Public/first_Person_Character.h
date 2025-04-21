@@ -55,16 +55,28 @@ public:
     float TeleportDelayTime = 0.6f;
 
     // FLASHLIGHT FEATURE
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Flashlight")
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
     class USpotLightComponent* Flashlight;
 
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Flashlight")
-    bool bHasFlashlight = false;
+    bool bFlashlightOn;
 
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Flashlight")
-    bool bFlashlightOn = false;
+    // INVENTORY SYSTEM
+    UPROPERTY()
+    TArray<TSubclassOf<AActor>> Inventory;
+
+    UPROPERTY()
+    TArray<FName> InventoryTags;
+
+    UPROPERTY()
+    FVector StoredItemScale;
+    
+    FName CurrentItemTag = NAME_None;
+    TSubclassOf<AActor> CurrentItem = nullptr;
+    int32 CurrentIndex = 0;
 
     void ToggleFlashlight();
+    void DropCurrentItem();
+    void ScrollInventory(float Value);
 
 private:
     // FOV CAMERA TRANSITION FEATURE
