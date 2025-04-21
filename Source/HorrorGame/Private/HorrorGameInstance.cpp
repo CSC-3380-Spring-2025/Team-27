@@ -37,6 +37,10 @@ void UHorrorGameInstance::SaveGameProgress()
         {
             SaveGameInstance->PlayerLocation = Player->GetActorLocation();
             SaveGameInstance->PlayerRotation = Player->GetActorRotation();
+
+            // save flashlight battery state
+            SaveGameInstance->SavedBatteryLevel = Player->CurrentBattery;
+            SaveGameInstance->bHasPickedUpFlashlight = Player->bHasPickedUpFlashlight;
         }
     }
     SaveGameInstance->InteractedTags = InteractedTags.Array();
@@ -100,6 +104,10 @@ bool UHorrorGameInstance::LoadGameProgress()
         {
             Player->SetActorLocation(LoadedGame->PlayerLocation);
             Player->SetActorRotation(LoadedGame->PlayerRotation);
+
+            // restore flashlight battery state
+            Player->CurrentBattery = LoadedGame->SavedBatteryLevel;
+            Player->bHasPickedUpFlashlight = LoadedGame->bHasPickedUpFlashlight;
         }
     }
 

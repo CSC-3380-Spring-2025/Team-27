@@ -58,7 +58,24 @@ public:
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
     class USpotLightComponent* Flashlight;
 
+    UPROPERTY(BlueprintReadWrite)
+    bool bHasPickedUpFlashlight = false;
+
     bool bFlashlightOn;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Flashlight")
+    int32 MaxBattery = 5;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Flashlight")
+    int32 CurrentBattery = 5;
+
+    UFUNCTION()
+    void UpdateBatteryUI();
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UI")
+    TSubclassOf<UUserWidget> BatteryWidgetClass;
+
+    UUserWidget* BatteryWidget;
 
     // INVENTORY SYSTEM
     UPROPERTY()
@@ -99,6 +116,9 @@ private:
     UPROPERTY()
     UUserWidget* CrosshairWidget;
 
+    // flashlight drain
+    float BatteryDrainTimer = 0.f;
+
     // PAUSE MENU UI
     UPROPERTY()
     APauseManager* PauseManager;
@@ -117,6 +137,8 @@ private:
     // HEAD-BOB FEATURE
     UPROPERTY(EditAnywhere, Category = "HeadBobbing")
     bool bEnableHeadBobbing = true; // toggle head bobbing on/off
+
+    float CurrentBobbingFactor = 0.0f;
 
     UPROPERTY(EditAnywhere, Category = "HeadBobbing")
     float BobbingSpeed = 10.0f;

@@ -73,6 +73,7 @@ void Ainteraction_System::InitInteractionFunctionMap()
     Interaction_Functions.Add(FName(TEXT("Loop1Key")), &Ainteraction_System::CollectLoop1Key);
     Interaction_Functions.Add("TeleportToMainRoom", &Ainteraction_System::TeleportUsingDataTable); // uses the DataTable
     Interaction_Functions.Add(FName(TEXT("Pickup_Object")), &Ainteraction_System::Pickup_Object);
+    Interaction_Functions.Add(FName(TEXT("RestoreFlashlightBattery")), &Ainteraction_System::RestoreFlashlightBattery);
 
 }
 
@@ -170,6 +171,24 @@ void Ainteraction_System::Pickup_Object(Afirst_Person_Character* Character, AAct
     Character->CurrentIndex = Character->Inventory.Num() - 1;
 
     UE_LOG(LogTemp, Log, TEXT("Item '%s' added to inventory."), *HitActor->GetName());
+
+    // if flashlight is picked up, start with 2 battery bars
+    if (Tag == "PickupFlashlight")
+    {
+        // Only set to 2 bars if not previously picked up
+        if (!Character->bHasPickedUpFlashlight)
+        {
+            Character->CurrentBattery = 2;
+            Character->bHasPickedUpFlashlight = true;
+            UE_LOG(LogTemp, Log, TEXT("First flashlight pickup. Battery set to 2 bars."));
+        }
+        else
+        {
+            UE_LOG(LogTemp, Log, TEXT("Flashlight re-picked up. Keeping previous battery level: %d"), Character->CurrentBattery);
+        }
+
+        Character->UpdateBatteryUI();
+    }
 
     UHorrorGameInstance* GI = Cast<UHorrorGameInstance>(UGameplayStatics::GetGameInstance(Character));
     if (GI && HitActor->Tags.Num() > 0)
@@ -273,5 +292,20 @@ void Ainteraction_System::CollectLoop1Key(Afirst_Person_Character* Character, AA
             GI->MarkTagInteracted(HitActor->Tags[0]);
         }
     }
+}
+
+void Ainteraction_System::RestoreFlashlightBattery(Afirst_Person_Character* Character, AActor* HitActor)
+{
+    if (!Character || !HitActor) return;
+
+    // Restore battery to full
+    Character->CurrentBattery = Character->MaxBattery;
+
+    // update UI immediately
+    Character->UpdateBatteryUI();
+
+    UE_LOG(LogTemp, Warning, TEXT("Battery picked up. Flashlight fully recharged!"));
+
+    HitActor->Destroy();
 }
 

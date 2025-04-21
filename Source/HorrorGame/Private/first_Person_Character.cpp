@@ -48,7 +48,7 @@ Afirst_Person_Character::Afirst_Person_Character()
     Flashlight = CreateDefaultSubobject<USpotLightComponent>(TEXT("Flashlight"));
     Flashlight->SetupAttachment(cam);
     Flashlight->SetVisibility(false);
-    Flashlight->SetIntensity(5000.0f);
+    Flashlight->SetIntensity(2500.0f);
     Flashlight->SetInnerConeAngle(20.0f);
     Flashlight->SetOuterConeAngle(35.0f);
     Flashlight->SetAttenuationRadius(1000.0f);
@@ -128,7 +128,17 @@ void Afirst_Person_Character::BeginPlay()
         {
             CrosshairWidget->AddToViewport(1);
         }
-    }   
+    }  
+
+    if (BatteryWidgetClass)
+    {
+        BatteryWidget = CreateWidget<UUserWidget>(GetWorld()->GetFirstPlayerController(), BatteryWidgetClass);
+        if (BatteryWidget)
+        {
+            BatteryWidget->AddToViewport();
+            BatteryWidget->SetVisibility(ESlateVisibility::Hidden); // hides it initially
+        }
+    }
 
     // NEW LOOP INIT LOGIC
     UHorrorGameInstance* GameInstance = Cast<UHorrorGameInstance>(UGameplayStatics::GetGameInstance(this));
@@ -236,6 +246,34 @@ void Afirst_Person_Character::Tick(float DeltaTime)
         Settings.bOverride_VignetteIntensity = true;
         Settings.VignetteIntensity = FMath::FInterpTo(Settings.VignetteIntensity, TargetVignetteIntensity, DeltaTime, VFXTransitionSpeed);
     }
+
+    // BATTERY DRAIN LOGIC
+    if (bFlashlightOn)
+    {
+        BatteryDrainTimer += DeltaTime;
+
+        // Drain every 5 seconds (adjust interval here)
+        if (BatteryDrainTimer >= 5.0f)
+        {
+            BatteryDrainTimer = 0.f;
+
+            if (CurrentBattery > 0)
+            {
+                CurrentBattery--;
+
+                // Turn off flashlight if empty
+                if (CurrentBattery <= 0)
+                {
+                    CurrentBattery = 0;
+                    bFlashlightOn = false;
+                    Flashlight->SetVisibility(false);
+                    UE_LOG(LogTemp, Warning, TEXT("Battery depleted. Flashlight OFF"));
+                }
+
+                UpdateBatteryUI(); // custom function to update widget
+            }
+        }
+    }
 }
 
 float Afirst_Person_Character::GetTargetFOV() const
@@ -307,16 +345,62 @@ void Afirst_Person_Character::ToggleFlashlight()
 {
     if (CurrentItemTag == "PickupFlashlight")
     {
-        bFlashlightOn = !bFlashlightOn;
-        Flashlight->SetVisibility(bFlashlightOn);
-        UE_LOG(LogTemp, Log, TEXT("Flashlight %s"), bFlashlightOn ? TEXT("ON") : TEXT("OFF"));
+        // Show battery UI when flashlight is held
+        if (BatteryWidget)
+        {
+            BatteryWidget->SetVisibility(ESlateVisibility::Visible);
+        }
+
+        if (!bFlashlightOn && CurrentBattery > 0)
+        {
+            bFlashlightOn = true;
+            Flashlight->SetVisibility(true);
+        }
+        else if (bFlashlightOn)
+        {
+            bFlashlightOn = false;
+            Flashlight->SetVisibility(false);
+        }
+
+        if (CurrentBattery <= 0)
+        {
+            bFlashlightOn = false;
+            Flashlight->SetVisibility(false);
+        }
+
+        UpdateBatteryUI();
     }
-    
-    else if (bFlashlightOn)
+    else
     {
+        // Hide battery UI when flashlight is no longer equipped
+        if (BatteryWidget)
+        {
+            BatteryWidget->SetVisibility(ESlateVisibility::Hidden);
+        }
+
+        // Also turn flashlight off
         bFlashlightOn = false;
         Flashlight->SetVisibility(false);
-        UE_LOG(LogTemp, Log, TEXT("Flashlight forced OFF because it's not being held"));
+    }
+}
+
+void Afirst_Person_Character::UpdateBatteryUI()
+{
+    if (BatteryWidget)
+    {
+        UFunction* UpdateFunc = BatteryWidget->FindFunction(FName("UpdateBatteryBars"));
+        if (UpdateFunc)
+        {
+            struct FBatteryParams
+            {
+                int32 BatteryLevel;
+            };
+
+            FBatteryParams Params;
+            Params.BatteryLevel = CurrentBattery;
+
+            BatteryWidget->ProcessEvent(UpdateFunc, &Params);
+        }
     }
 }
 
@@ -352,6 +436,12 @@ void Afirst_Person_Character::DropCurrentItem()
 
         ToggleFlashlight();
     }
+
+    // Hide battery UI if we dropped the flashlight
+    if (BatteryWidget && CurrentItemTag != "PickupFlashlight")
+    {
+        BatteryWidget->SetVisibility(ESlateVisibility::Hidden);
+    }
 }
 
 void Afirst_Person_Character::ScrollInventory(float AxisValue)
@@ -383,6 +473,18 @@ void Afirst_Person_Character::ScrollInventory(float AxisValue)
     }
     
     ToggleFlashlight();
+
+    if (BatteryWidget)
+    {
+        if (CurrentItemTag == "PickupFlashlight")
+        {
+            BatteryWidget->SetVisibility(ESlateVisibility::Visible);
+        }
+        else
+        {
+            BatteryWidget->SetVisibility(ESlateVisibility::Hidden);
+        }
+    }
 }
 
 void Afirst_Person_Character::TogglePause()
@@ -421,21 +523,29 @@ void Afirst_Person_Character::ApplyHeadBobbing(float DeltaTime) //Head-Bobbing f
     if (!bEnableHeadBobbing || !cam) return;
 
     float Speed = GetVelocity().Size();
-    //reduce bob when walking
-    float BobbingFactor = 1.0f; //default bobbing factor
-    if (Speed > 10.0f && Speed < 150.0f) //bob when walking
+    float TargetBobbingFactor = 0.0f;
+
+    // Determine target factor based on state
+    if (bIsSprinting)
     {
-        BobbingFactor = 0.5f; //reduce bob intensity when walking
+        TargetBobbingFactor = 1.5f; // intense sprint bob
     }
-    else if (Speed >= 150.0f) //more bob when sprint
+    else if (Speed > 10.0f)
     {
-        BobbingFactor = 1.0f;
+        TargetBobbingFactor = 0.5f; // subtle walking bob
     }
+    else
+    {
+        TargetBobbingFactor = 0.0f; // idle
+    }
+
+    // Smooth interpolation
+    CurrentBobbingFactor = FMath::FInterpTo(CurrentBobbingFactor, TargetBobbingFactor, DeltaTime, 5.0f); // tweak 5.0f as smoothing speed
 
     if (Speed > 10.0f)
     {
         BobbingTime += DeltaTime * BobbingSpeed;
-        float BobbingOffset = FMath::Sin(BobbingTime) * BobbingAmount * BobbingFactor;
+        float BobbingOffset = FMath::Sin(BobbingTime) * BobbingAmount * CurrentBobbingFactor;
 
         //reduce bob when crouching
         if (bWantsToCrouch)
