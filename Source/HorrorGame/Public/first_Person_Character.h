@@ -75,7 +75,9 @@ public:
     int32 CurrentIndex = 0;
 
     void ToggleFlashlight();
+    void AutoTurnOffFlashlight();
     void DropCurrentItem();
+    void RemoveItemFromInventory();
     void ScrollInventory(float Value);
 
 private:

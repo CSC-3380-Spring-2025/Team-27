@@ -55,7 +55,6 @@ private:
 	// Interaction functions
 	void Pickup_Object(Afirst_Person_Character* Character, AActor* HitActor);
 	void View_Note(Afirst_Person_Character* Character, AActor* HitActor);
-	void CollectLoop1Key(Afirst_Person_Character* Character, AActor* HitActor);
 	void CompleteLoopDoor(Afirst_Person_Character* Character, AActor* HitActor);
 
 	void TeleportUsingDataTable(Afirst_Person_Character* Character, AActor* HitActor);

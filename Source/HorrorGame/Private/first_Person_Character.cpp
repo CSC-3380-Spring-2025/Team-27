@@ -311,12 +311,34 @@ void Afirst_Person_Character::ToggleFlashlight()
         Flashlight->SetVisibility(bFlashlightOn);
         UE_LOG(LogTemp, Log, TEXT("Flashlight %s"), bFlashlightOn ? TEXT("ON") : TEXT("OFF"));
     }
-    
-    else if (bFlashlightOn)
+}
+
+void Afirst_Person_Character::AutoTurnOffFlashlight()
+{
+    if (CurrentItemTag != "PickupFlashlight")
     {
         bFlashlightOn = false;
         Flashlight->SetVisibility(false);
         UE_LOG(LogTemp, Log, TEXT("Flashlight forced OFF because it's not being held"));
+    }
+}
+
+void Afirst_Person_Character::RemoveItemFromInventory()
+{
+    Inventory.RemoveAt(CurrentIndex);
+    InventoryTags.RemoveAt(CurrentIndex);
+
+    if (Inventory.Num() > 0)
+    {
+        CurrentIndex = CurrentIndex % Inventory.Num();
+        CurrentItem = Inventory[CurrentIndex];
+        CurrentItemTag = InventoryTags[CurrentIndex];
+    }
+    else
+    {
+        CurrentIndex = 0;
+        CurrentItem = nullptr;
+        CurrentItemTag = NAME_None;
     }
 }
 
@@ -334,23 +356,8 @@ void Afirst_Person_Character::DropCurrentItem()
         AActor* SpawnedActor = World->SpawnActor<AActor>(CurrentItem, SpawnLocation, SpawnRotation, SpawnParams);
         SpawnedActor->SetActorScale3D(StoredItemScale);
 
-        Inventory.RemoveAt(CurrentIndex);
-        InventoryTags.RemoveAt(CurrentIndex);
-
-        if (Inventory.Num() > 0)
-        {
-            CurrentIndex = CurrentIndex % Inventory.Num();
-            CurrentItem = Inventory[CurrentIndex];
-            CurrentItemTag = InventoryTags[CurrentIndex];
-        }
-        else
-        {
-            CurrentIndex = 0;
-            CurrentItem = nullptr;
-            CurrentItemTag = NAME_None;
-        }
-
-        ToggleFlashlight();
+        RemoveItemFromInventory();
+        AutoTurnOffFlashlight();
     }
 }
 
@@ -382,7 +389,7 @@ void Afirst_Person_Character::ScrollInventory(float AxisValue)
         }
     }
     
-    ToggleFlashlight();
+    AutoTurnOffFlashlight();
 }
 
 void Afirst_Person_Character::TogglePause()
