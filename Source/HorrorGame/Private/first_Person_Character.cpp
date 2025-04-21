@@ -345,32 +345,35 @@ void Afirst_Person_Character::ToggleFlashlight()
 {
     if (CurrentItemTag == "PickupFlashlight")
     {
-        // Show battery UI when flashlight is held
+        if (CurrentBattery > 0)
+        {
+            bFlashlightOn = !bFlashlightOn;
+        }
+       
+        Flashlight->SetVisibility(bFlashlightOn);
+
         if (BatteryWidget)
         {
-            BatteryWidget->SetVisibility(ESlateVisibility::Visible);
-        }
-
-        if (!bFlashlightOn && CurrentBattery > 0)
-        {
-            bFlashlightOn = true;
-            Flashlight->SetVisibility(true);
-        }
-        else if (bFlashlightOn)
-        {
-            bFlashlightOn = false;
-            Flashlight->SetVisibility(false);
+            BatteryWidget->SetVisibility(bFlashlightOn ? ESlateVisibility::Visible : ESlateVisibility::Hidden);
         }
 
         if (CurrentBattery <= 0)
         {
             bFlashlightOn = false;
             Flashlight->SetVisibility(false);
+            if (BatteryWidget)
+            {
+                BatteryWidget->SetVisibility(ESlateVisibility::Hidden);
+            }
         }
-
         UpdateBatteryUI();
     }
-    else
+
+}
+
+void Afirst_Person_Character::AutoTurnOffFlashlight()
+{ 
+    if (CurrentItemTag != "PickupFlashlight")
     {
         // Hide battery UI when flashlight is no longer equipped
         if (BatteryWidget)
@@ -381,8 +384,29 @@ void Afirst_Person_Character::ToggleFlashlight()
         // Also turn flashlight off
         bFlashlightOn = false;
         Flashlight->SetVisibility(false);
+        UE_LOG(LogTemp, Log, TEXT("Flashlight forced OFF because it's not being held"));
     }
 }
+
+void Afirst_Person_Character::RemoveItemFromInventory()
+{
+    Inventory.RemoveAt(CurrentIndex);
+    InventoryTags.RemoveAt(CurrentIndex);
+
+    if (Inventory.Num() > 0)
+    {
+        CurrentIndex = CurrentIndex % Inventory.Num();
+        CurrentItem = Inventory[CurrentIndex];
+        CurrentItemTag = InventoryTags[CurrentIndex];
+    }
+    else
+    {
+        CurrentIndex = 0;
+        CurrentItem = nullptr;
+        CurrentItemTag = NAME_None;
+    }
+}
+
 
 void Afirst_Person_Character::UpdateBatteryUI()
 {
@@ -418,29 +442,8 @@ void Afirst_Person_Character::DropCurrentItem()
         AActor* SpawnedActor = World->SpawnActor<AActor>(CurrentItem, SpawnLocation, SpawnRotation, SpawnParams);
         SpawnedActor->SetActorScale3D(StoredItemScale);
 
-        Inventory.RemoveAt(CurrentIndex);
-        InventoryTags.RemoveAt(CurrentIndex);
-
-        if (Inventory.Num() > 0)
-        {
-            CurrentIndex = CurrentIndex % Inventory.Num();
-            CurrentItem = Inventory[CurrentIndex];
-            CurrentItemTag = InventoryTags[CurrentIndex];
-        }
-        else
-        {
-            CurrentIndex = 0;
-            CurrentItem = nullptr;
-            CurrentItemTag = NAME_None;
-        }
-
-        ToggleFlashlight();
-    }
-
-    // Hide battery UI if we dropped the flashlight
-    if (BatteryWidget && CurrentItemTag != "PickupFlashlight")
-    {
-        BatteryWidget->SetVisibility(ESlateVisibility::Hidden);
+        RemoveItemFromInventory();
+        AutoTurnOffFlashlight();
     }
 }
 
@@ -472,19 +475,7 @@ void Afirst_Person_Character::ScrollInventory(float AxisValue)
         }
     }
     
-    ToggleFlashlight();
-
-    if (BatteryWidget)
-    {
-        if (CurrentItemTag == "PickupFlashlight")
-        {
-            BatteryWidget->SetVisibility(ESlateVisibility::Visible);
-        }
-        else
-        {
-            BatteryWidget->SetVisibility(ESlateVisibility::Hidden);
-        }
-    }
+    AutoTurnOffFlashlight();
 }
 
 void Afirst_Person_Character::TogglePause()
