@@ -41,7 +41,6 @@ void Ainteraction_System::Tick(float DeltaTime)
 
     if (Current)
     {
-        UE_LOG(LogTemp, Log, TEXT("Tick Trace hit: %s"), *Current->GetName());
         WidgetPrompt(Character, Current, true);
     }
 
@@ -70,7 +69,6 @@ void Ainteraction_System::InitInteractionFunctionMap()
 {
     Interaction_Functions.Add(FName(TEXT("OpenDoor")), &Ainteraction_System::TeleportUsingDataTable);
     Interaction_Functions.Add(FName(TEXT("ExitDoor")), &Ainteraction_System::CompleteLoopDoor);
-    Interaction_Functions.Add(FName(TEXT("Loop1Key")), &Ainteraction_System::CollectLoop1Key);
     Interaction_Functions.Add("TeleportToMainRoom", &Ainteraction_System::TeleportUsingDataTable); // uses the DataTable
     Interaction_Functions.Add(FName(TEXT("Pickup_Object")), &Ainteraction_System::Pickup_Object);
     Interaction_Functions.Add(FName(TEXT("RestoreFlashlightBattery")), &Ainteraction_System::RestoreFlashlightBattery);
@@ -197,6 +195,7 @@ void Ainteraction_System::Pickup_Object(Afirst_Person_Character* Character, AAct
     }
 
     HitActor->Destroy();
+    Character->AutoTurnOffFlashlight();
 }
 
 void Ainteraction_System::TeleportUsingDataTable(Afirst_Person_Character* Character, AActor* HitActor)
@@ -243,6 +242,17 @@ void Ainteraction_System::CompleteLoopDoor(Afirst_Person_Character* Character, A
     if (!Character || !HitActor) return;
 
     UHorrorGameInstance* GI = Cast<UHorrorGameInstance>(UGameplayStatics::GetGameInstance(Character));
+
+    if (Character->CurrentItemTag != "Loop1Key")
+    {
+        UE_LOG(LogTemp, Warning, TEXT("You must be holding the key to unlock the door."));
+        return;
+    }
+    else
+    {
+        GI->bLoop1Complete = true;
+    }
+
     if (!GI) return;
 
     int32 CurrentLoop = GI->GetLoopIndex();
@@ -266,32 +276,16 @@ void Ainteraction_System::CompleteLoopDoor(Afirst_Person_Character* Character, A
 
     GI->AdvanceLoop();
 
+    Character->RemoveItemFromInventory();
+
     UE_LOG(LogTemp, Warning, TEXT("Loop %d completed! Now entering Loop %d."), CurrentLoop, GI->GetLoopIndex());
 }
+
 
 
 void Ainteraction_System::View_Note(Afirst_Person_Character* Character, AActor* Hit_Actor)
 {
     UE_LOG(LogTemp, Log, TEXT("Viewed a note!"));
-}
-
-// Key interaction for loop 1
-void Ainteraction_System::CollectLoop1Key(Afirst_Person_Character* Character, AActor* HitActor)
-{
-    if (!Character || !HitActor) return;
-
-    UHorrorGameInstance* GI = Cast<UHorrorGameInstance>(UGameplayStatics::GetGameInstance(Character));
-    if (GI && GI->GetLoopIndex() == 1)
-    {
-        GI->bLoop1Complete = true;
-        HitActor->Destroy();
-        UE_LOG(LogTemp, Warning, TEXT("Loop 1 Key Collected!"));
-
-        if (HitActor->Tags.Num() > 0)
-        {
-            GI->MarkTagInteracted(HitActor->Tags[0]);
-        }
-    }
 }
 
 void Ainteraction_System::RestoreFlashlightBattery(Afirst_Person_Character* Character, AActor* HitActor)
