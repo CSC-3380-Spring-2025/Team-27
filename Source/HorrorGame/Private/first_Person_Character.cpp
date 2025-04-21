@@ -52,6 +52,7 @@ Afirst_Person_Character::Afirst_Person_Character()
     Flashlight->SetInnerConeAngle(20.0f);
     Flashlight->SetOuterConeAngle(35.0f);
     Flashlight->SetAttenuationRadius(1000.0f);
+    bFlashlightOn = false;
 
     //basic movements speeds
     DefaultMaxWalkingSpeed = 150.0f;
@@ -279,6 +280,8 @@ void Afirst_Person_Character::SetupPlayerInputComponent(UInputComponent* PlayerI
 
     // FLASHLIGHT INPUT (f)
     PlayerInputComponent->BindAction("ToggleFlashlight", IE_Pressed, this, &Afirst_Person_Character::ToggleFlashlight);
+    PlayerInputComponent->BindAction("DropItem", IE_Pressed, this, &Afirst_Person_Character::DropCurrentItem);
+    PlayerInputComponent->BindAxis("ScrollInventory", this, &Afirst_Person_Character::ScrollInventory);
 
     // PAUSE MENU INPUT (Escape)
     PlayerInputComponent->BindAction("PauseGame", IE_Pressed, this, &Afirst_Person_Character::TogglePause);
@@ -302,12 +305,84 @@ void Afirst_Person_Character::Vertic_Move(float value)
 
 void Afirst_Person_Character::ToggleFlashlight()
 {
-    if (!bHasFlashlight || !Flashlight) return;
+    if (CurrentItemTag == "PickupFlashlight")
+    {
+        bFlashlightOn = !bFlashlightOn;
+        Flashlight->SetVisibility(bFlashlightOn);
+        UE_LOG(LogTemp, Log, TEXT("Flashlight %s"), bFlashlightOn ? TEXT("ON") : TEXT("OFF"));
+    }
+    
+    else if (bFlashlightOn)
+    {
+        bFlashlightOn = false;
+        Flashlight->SetVisibility(false);
+        UE_LOG(LogTemp, Log, TEXT("Flashlight forced OFF because it's not being held"));
+    }
+}
 
-    bFlashlightOn = !bFlashlightOn;
-    Flashlight->SetVisibility(bFlashlightOn);
+void Afirst_Person_Character::DropCurrentItem()
+{
+    if (!CurrentItem) return;
 
-    UE_LOG(LogTemp, Log, TEXT("Flashlight toggled: %s"), bFlashlightOn ? TEXT("On") : TEXT("Off"));
+    FVector SpawnLocation = GetActorLocation() + GetActorForwardVector() * 150.f;
+    FRotator SpawnRotation = GetActorRotation();
+
+    UWorld* World = GetWorld();
+    if (World)
+    {
+        FActorSpawnParameters SpawnParams;
+        AActor* SpawnedActor = World->SpawnActor<AActor>(CurrentItem, SpawnLocation, SpawnRotation, SpawnParams);
+        SpawnedActor->SetActorScale3D(StoredItemScale);
+
+        Inventory.RemoveAt(CurrentIndex);
+        InventoryTags.RemoveAt(CurrentIndex);
+
+        if (Inventory.Num() > 0)
+        {
+            CurrentIndex = CurrentIndex % Inventory.Num();
+            CurrentItem = Inventory[CurrentIndex];
+            CurrentItemTag = InventoryTags[CurrentIndex];
+        }
+        else
+        {
+            CurrentIndex = 0;
+            CurrentItem = nullptr;
+            CurrentItemTag = NAME_None;
+        }
+
+        ToggleFlashlight();
+    }
+}
+
+void Afirst_Person_Character::ScrollInventory(float AxisValue)
+{
+    if (Inventory.Num() == 0 || FMath::IsNearlyZero(AxisValue)) return;
+
+    int32 TotalSlots = Inventory.Num() + 1;
+
+    CurrentIndex = (CurrentIndex + (AxisValue > 0 ? 1 : -1) + TotalSlots) % TotalSlots;
+
+    if (CurrentIndex == Inventory.Num())
+    {
+        CurrentItem = nullptr;
+        CurrentItemTag = NAME_None;
+        UE_LOG(LogTemp, Log, TEXT("Held item: None"));
+    }
+    else 
+    {
+        CurrentItem = (Inventory.IsValidIndex(CurrentIndex)) ? Inventory[CurrentIndex] : nullptr; 
+        CurrentItemTag = InventoryTags.IsValidIndex(CurrentIndex) ? InventoryTags[CurrentIndex] : NAME_None;
+        if (CurrentItem)
+        {
+            UE_LOG(LogTemp, Log, TEXT("Held item: %s"), *CurrentItem->GetName());
+        }
+        else
+        {
+            UE_LOG(LogTemp, Warning, TEXT("Held item is null (unexpected)"));
+        }
+    }
+    
+    ToggleFlashlight();
 }
 
 void Afirst_Person_Character::TogglePause()
