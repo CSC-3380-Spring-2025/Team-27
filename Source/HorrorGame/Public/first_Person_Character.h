@@ -7,6 +7,7 @@
 #include "Components/InputComponent.h"
 #include "Camera/CameraComponent.h"
 #include "Components/PostProcessComponent.h"
+#include "Components/SpotLightComponent.h"
 #include "Blueprint/UserWidget.h"
 #include "PauseManager.h"
 #include "interaction_System.h"
@@ -53,6 +54,48 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Transition")
     float TeleportDelayTime = 0.6f;
 
+    // FLASHLIGHT FEATURE
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
+    class USpotLightComponent* Flashlight;
+
+    UPROPERTY(BlueprintReadWrite)
+    bool bHasPickedUpFlashlight = false;
+
+    bool bFlashlightOn;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Flashlight")
+    int32 MaxBattery = 5;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Flashlight")
+    int32 CurrentBattery = 5;
+
+    UFUNCTION()
+    void UpdateBatteryUI();
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UI")
+    TSubclassOf<UUserWidget> BatteryWidgetClass;
+
+    UUserWidget* BatteryWidget;
+
+    // INVENTORY SYSTEM
+    UPROPERTY()
+    TArray<TSubclassOf<AActor>> Inventory;
+
+    UPROPERTY()
+    TArray<FName> InventoryTags;
+
+    UPROPERTY()
+    FVector StoredItemScale;
+    
+    FName CurrentItemTag = NAME_None;
+    TSubclassOf<AActor> CurrentItem = nullptr;
+    int32 CurrentIndex = 0;
+
+    void ToggleFlashlight();
+    void AutoTurnOffFlashlight();
+    void DropCurrentItem();
+    void RemoveItemFromInventory();
+    void ScrollInventory(float Value);
 
 private:
     // FOV CAMERA TRANSITION FEATURE
@@ -75,6 +118,9 @@ private:
     UPROPERTY()
     UUserWidget* CrosshairWidget;
 
+    // flashlight drain
+    float BatteryDrainTimer = 0.f;
+
     // PAUSE MENU UI
     UPROPERTY()
     APauseManager* PauseManager;
@@ -93,6 +139,8 @@ private:
     // HEAD-BOB FEATURE
     UPROPERTY(EditAnywhere, Category = "HeadBobbing")
     bool bEnableHeadBobbing = true; // toggle head bobbing on/off
+
+    float CurrentBobbingFactor = 0.0f;
 
     UPROPERTY(EditAnywhere, Category = "HeadBobbing")
     float BobbingSpeed = 10.0f;

@@ -3,17 +3,17 @@
 #include "interaction_System.h"
 #include "Engine/World.h"
 #include "first_Person_Character.h"
-#include "HorrorGameInstance.h"
-#include "Kismet/KismetSystemLibrary.h"
+#include "Kismet/KismetMathLibrary.h"
+#include "Camera/CameraComponent.h"
+#include "Components/WidgetComponent.h"
 #include "Kismet/GameplayStatics.h"
-#include "Engine/TargetPoint.h"
 #include "HorrorGameInstance.h"
 #include "DrawDebugHelpers.h"
 #include "interactable_Data_Table.h"
 
 Ainteraction_System::Ainteraction_System()
 {
-    PrimaryActorTick.bCanEverTick = false;
+    PrimaryActorTick.bCanEverTick = true;
 
     TeleportTargetTag = FName(TEXT("MainRoomSpawn"));
 }
@@ -24,32 +24,72 @@ void Ainteraction_System::BeginPlay()
     InitInteractionFunctionMap();
 }
 
-void Ainteraction_System::InitInteractionFunctionMap()
+void Ainteraction_System::Tick(float DeltaTime)
 {
-    Interaction_Functions.Add(FName(TEXT("OpenDoor")), &Ainteraction_System::TeleportUsingDataTable);
-    Interaction_Functions.Add(FName(TEXT("ExitDoor")), &Ainteraction_System::CompleteLoopDoor);
-    Interaction_Functions.Add(FName(TEXT("Loop1Key")), &Ainteraction_System::CollectLoop1Key);
-    Interaction_Functions.Add("TeleportToMainRoom", &Ainteraction_System::TeleportUsingDataTable); // uses the DataTable
+    Super::Tick(DeltaTime);
 
-}
-
-void Ainteraction_System::Interact(Afirst_Person_Character* Character)
-{
+    Afirst_Person_Character* Character = Cast<Afirst_Person_Character>(GetWorld()->GetFirstPlayerController()->GetPawn());
     if (!Character) return;
 
-    FVector Start = Character->cam->GetComponentLocation();
-    FVector End = Start + (Character->cam->GetForwardVector() * Character->InteractionDistance); // FIXED: using property, not hardcoded
-
     FHitResult Hit;
+    AActor* Current = LineTraceFromCamera(Character, Hit);
+
+    if (LastHitActor && LastHitActor != Current)
+    {
+        WidgetPrompt(Character, LastHitActor, false);
+    }
+
+    if (Current)
+    {
+        WidgetPrompt(Character, Current, true);
+    }
+
+    LastHitActor = Current;
+}
+
+AActor* Ainteraction_System::LineTraceFromCamera(Afirst_Person_Character* Character, FHitResult& Hit)
+{
+    if (!Character || !Character->cam) return nullptr;
+
+    FVector Start = Character->cam->GetComponentLocation();
+    FVector End = Start + (Character->cam->GetForwardVector() * Character->InteractionDistance);
+
     FCollisionQueryParams Params;
     Params.AddIgnoredActor(Character);
 
     if (GetWorld()->LineTraceSingleByChannel(Hit, Start, End, ECC_Visibility, Params))
     {
-        if (Hit.GetActor())
-        {
-            Perform_Interaction(Character, Hit.GetActor());
-        }
+        return Hit.GetActor();
+    }
+
+    return nullptr;
+}
+
+void Ainteraction_System::InitInteractionFunctionMap()
+{
+    Interaction_Functions.Add(FName(TEXT("OpenDoor")), &Ainteraction_System::TeleportUsingDataTable);
+    Interaction_Functions.Add(FName(TEXT("ExitDoor")), &Ainteraction_System::CompleteLoopDoor);
+    Interaction_Functions.Add("TeleportToMainRoom", &Ainteraction_System::TeleportUsingDataTable); // uses the DataTable
+    Interaction_Functions.Add(FName(TEXT("Pickup_Object")), &Ainteraction_System::Pickup_Object);
+    Interaction_Functions.Add(FName(TEXT("RestoreFlashlightBattery")), &Ainteraction_System::RestoreFlashlightBattery);
+
+}
+
+void Ainteraction_System::Interact(Afirst_Person_Character* Character)
+{
+    if (!Character || !Character->cam) return;
+
+    FHitResult Hit;
+    AActor* HitActor = LineTraceFromCamera(Character, Hit);
+
+    if (HitActor)
+    {
+        Perform_Interaction(Character, HitActor);
+    }
+    else
+    {
+        UE_LOG(LogTemp, Warning, TEXT("Interact: No valid actor hit."));
+        return;
     }
 }
 
@@ -74,7 +114,7 @@ void Ainteraction_System::Perform_Interaction(Afirst_Person_Character* Character
         if (Row)
         {
             const FName& FunctionName = Row->Interactable_Function;
-
+            UE_LOG(LogTemp, Log, TEXT("Found function: %s"), *FunctionName.ToString());
             if (Interaction_Functions.Contains(FunctionName))
             {
                 UE_LOG(LogTemp, Log, TEXT("Performing interaction for tag '%s' using function '%s'"), *Tag.ToString(), *FunctionName.ToString());
@@ -95,9 +135,67 @@ void Ainteraction_System::Perform_Interaction(Afirst_Person_Character* Character
     UE_LOG(LogTemp, Warning, TEXT("Interaction failed: No matching tag logic found for actor: %s"), *HitActor->GetName());
 }
 
+void Ainteraction_System::WidgetPrompt(Afirst_Person_Character* Character, AActor* HitActor, bool Visibility)
+{
+    if (!HitActor) return;
+
+    UWidgetComponent* Widget = HitActor->FindComponentByClass<UWidgetComponent>();
+    if (Widget)
+    {
+        FVector WidgetLocation = Widget->GetComponentLocation();
+        FVector CameraLocation = Character->cam->GetComponentLocation();
+
+        FRotator WidgetRotation = UKismetMathLibrary::FindLookAtRotation(WidgetLocation, CameraLocation);
+        Widget->SetWorldRotation(WidgetRotation);
+
+        Widget->SetVisibility(Visibility);
+    }
+}
+
+
 void Ainteraction_System::Pickup_Object(Afirst_Person_Character* Character, AActor* HitActor)
 {
-    UE_LOG(LogTemp, Log, TEXT("Picked up an object!"));
+    if (!Character || !HitActor) return;
+
+    TSubclassOf<AActor> Item = HitActor->GetClass();
+    FName Tag = HitActor->Tags.IsValidIndex(0) ? HitActor->Tags[0] : NAME_None;
+    Character->StoredItemScale = HitActor->GetActorScale3D();
+
+    Character->Inventory.Add(Item);
+    Character->InventoryTags.Add(Tag);
+
+    Character->CurrentItem = Item;
+    Character->CurrentItemTag = Tag;
+    Character->CurrentIndex = Character->Inventory.Num() - 1;
+
+    UE_LOG(LogTemp, Log, TEXT("Item '%s' added to inventory."), *HitActor->GetName());
+
+    // if flashlight is picked up, start with 2 battery bars
+    if (Tag == "PickupFlashlight")
+    {
+        // Only set to 2 bars if not previously picked up
+        if (!Character->bHasPickedUpFlashlight)
+        {
+            Character->CurrentBattery = 2;
+            Character->bHasPickedUpFlashlight = true;
+            UE_LOG(LogTemp, Log, TEXT("First flashlight pickup. Battery set to 2 bars."));
+        }
+        else
+        {
+            UE_LOG(LogTemp, Log, TEXT("Flashlight re-picked up. Keeping previous battery level: %d"), Character->CurrentBattery);
+        }
+
+        Character->UpdateBatteryUI();
+    }
+
+    UHorrorGameInstance* GI = Cast<UHorrorGameInstance>(UGameplayStatics::GetGameInstance(Character));
+    if (GI && HitActor->Tags.Num() > 0)
+    {
+        GI->MarkTagInteracted(HitActor->Tags[0]);
+    }
+
+    HitActor->Destroy();
+    Character->AutoTurnOffFlashlight();
 }
 
 void Ainteraction_System::TeleportUsingDataTable(Afirst_Person_Character* Character, AActor* HitActor)
@@ -144,6 +242,17 @@ void Ainteraction_System::CompleteLoopDoor(Afirst_Person_Character* Character, A
     if (!Character || !HitActor) return;
 
     UHorrorGameInstance* GI = Cast<UHorrorGameInstance>(UGameplayStatics::GetGameInstance(Character));
+
+    if (Character->CurrentItemTag != "Loop1Key")
+    {
+        UE_LOG(LogTemp, Warning, TEXT("You must be holding the key to unlock the door."));
+        return;
+    }
+    else
+    {
+        GI->bLoop1Complete = true;
+    }
+
     if (!GI) return;
 
     int32 CurrentLoop = GI->GetLoopIndex();
@@ -167,8 +276,11 @@ void Ainteraction_System::CompleteLoopDoor(Afirst_Person_Character* Character, A
 
     GI->AdvanceLoop();
 
+    Character->RemoveItemFromInventory();
+
     UE_LOG(LogTemp, Warning, TEXT("Loop %d completed! Now entering Loop %d."), CurrentLoop, GI->GetLoopIndex());
 }
+
 
 
 void Ainteraction_System::View_Note(Afirst_Person_Character* Character, AActor* Hit_Actor)
@@ -176,17 +288,18 @@ void Ainteraction_System::View_Note(Afirst_Person_Character* Character, AActor* 
     UE_LOG(LogTemp, Log, TEXT("Viewed a note!"));
 }
 
-// Key interaction for loop 1
-void Ainteraction_System::CollectLoop1Key(Afirst_Person_Character* Character, AActor* HitActor)
+void Ainteraction_System::RestoreFlashlightBattery(Afirst_Person_Character* Character, AActor* HitActor)
 {
     if (!Character || !HitActor) return;
 
-    UHorrorGameInstance* GI = Cast<UHorrorGameInstance>(UGameplayStatics::GetGameInstance(Character));
-    if (GI && GI->GetLoopIndex() == 1)
-    {
-        GI->bLoop1Complete = true;
-        HitActor->Destroy();
-        UE_LOG(LogTemp, Warning, TEXT("Loop 1 Key Collected!"));
-    }
+    // Restore battery to full
+    Character->CurrentBattery = Character->MaxBattery;
+
+    // update UI immediately
+    Character->UpdateBatteryUI();
+
+    UE_LOG(LogTemp, Warning, TEXT("Battery picked up. Flashlight fully recharged!"));
+
+    HitActor->Destroy();
 }
 

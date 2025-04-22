@@ -8,6 +8,7 @@
 #include "interaction_System.generated.h"
 
 class Afirst_Person_Character;
+class UWidgetComponent;
 
 UCLASS()
 class HORRORGAME_API Ainteraction_System : public AActor
@@ -17,6 +18,8 @@ class HORRORGAME_API Ainteraction_System : public AActor
 public:	
 	// Sets default values for this actor's properties
 	Ainteraction_System();
+
+	virtual void Tick(float DeltaTime) override;
 
 	UFUNCTION()
 	void Interact(Afirst_Person_Character* Character);
@@ -52,16 +55,17 @@ private:
 	// Interaction functions
 	void Pickup_Object(Afirst_Person_Character* Character, AActor* HitActor);
 	void View_Note(Afirst_Person_Character* Character, AActor* HitActor);
-	void CollectLoop1Key(Afirst_Person_Character* Character, AActor* HitActor);
 	void CompleteLoopDoor(Afirst_Person_Character* Character, AActor* HitActor);
+	void RestoreFlashlightBattery(Afirst_Person_Character* Character, AActor* HitActor);
 
 	void TeleportUsingDataTable(Afirst_Person_Character* Character, AActor* HitActor);
-
-
+	void WidgetPrompt(Afirst_Person_Character* Character, AActor* HitActor, bool Visibility);
 
 	// Map of tag -> function pointer
 	TMap<FName, void (Ainteraction_System::*)(Afirst_Person_Character*, AActor*)> Interaction_Functions;
-
 	void InitInteractionFunctionMap();
+
+	AActor* LineTraceFromCamera(Afirst_Person_Character* Character, FHitResult& Hit);
+	AActor* LastHitActor = nullptr;
 
 };

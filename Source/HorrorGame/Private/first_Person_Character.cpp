@@ -44,6 +44,16 @@ Afirst_Person_Character::Afirst_Person_Character()
     PostProcessComponent->SetupAttachment(RootComponent);
     PostProcessComponent->bUnbound = true;
 
+    // flashlight component
+    Flashlight = CreateDefaultSubobject<USpotLightComponent>(TEXT("Flashlight"));
+    Flashlight->SetupAttachment(cam);
+    Flashlight->SetVisibility(false);
+    Flashlight->SetIntensity(2500.0f);
+    Flashlight->SetInnerConeAngle(20.0f);
+    Flashlight->SetOuterConeAngle(35.0f);
+    Flashlight->SetAttenuationRadius(1000.0f);
+    bFlashlightOn = false;
+
     //basic movements speeds
     DefaultMaxWalkingSpeed = 150.0f;
     SprintSpeedMultiplier = 1.45f;
@@ -118,7 +128,17 @@ void Afirst_Person_Character::BeginPlay()
         {
             CrosshairWidget->AddToViewport(1);
         }
-    }   
+    }  
+
+    if (BatteryWidgetClass)
+    {
+        BatteryWidget = CreateWidget<UUserWidget>(GetWorld()->GetFirstPlayerController(), BatteryWidgetClass);
+        if (BatteryWidget)
+        {
+            BatteryWidget->AddToViewport();
+            BatteryWidget->SetVisibility(ESlateVisibility::Hidden); // hides it initially
+        }
+    }
 
     // NEW LOOP INIT LOGIC
     UHorrorGameInstance* GameInstance = Cast<UHorrorGameInstance>(UGameplayStatics::GetGameInstance(this));
@@ -165,6 +185,11 @@ void Afirst_Person_Character::BeginPlay()
                 {
                     PC->PlayerCameraManager->StartCameraFade(1.f, 0.f, 1.0f, FLinearColor::Black, false, true);
                 }, 0.1f, false); // change this so user waits 2 seconds on a black screen 
+            UHorrorGameInstance* GI = Cast<UHorrorGameInstance>(UGameplayStatics::GetGameInstance(this));
+            if (GI)
+            {
+                GI->LoadGameProgress(); // this will auto-apply location + flags
+            }
         }
     }
 }
@@ -221,6 +246,34 @@ void Afirst_Person_Character::Tick(float DeltaTime)
         Settings.bOverride_VignetteIntensity = true;
         Settings.VignetteIntensity = FMath::FInterpTo(Settings.VignetteIntensity, TargetVignetteIntensity, DeltaTime, VFXTransitionSpeed);
     }
+
+    // BATTERY DRAIN LOGIC
+    if (bFlashlightOn)
+    {
+        BatteryDrainTimer += DeltaTime;
+
+        // Drain every 5 seconds (adjust interval here)
+        if (BatteryDrainTimer >= 5.0f)
+        {
+            BatteryDrainTimer = 0.f;
+
+            if (CurrentBattery > 0)
+            {
+                CurrentBattery--;
+
+                // Turn off flashlight if empty
+                if (CurrentBattery <= 0)
+                {
+                    CurrentBattery = 0;
+                    bFlashlightOn = false;
+                    Flashlight->SetVisibility(false);
+                    UE_LOG(LogTemp, Warning, TEXT("Battery depleted. Flashlight OFF"));
+                }
+
+                UpdateBatteryUI(); // custom function to update widget
+            }
+        }
+    }
 }
 
 float Afirst_Person_Character::GetTargetFOV() const
@@ -263,6 +316,11 @@ void Afirst_Person_Character::SetupPlayerInputComponent(UInputComponent* PlayerI
     // INTERACT INPUT (e)
     PlayerInputComponent->BindAction("InteractTest", IE_Pressed, this, &Afirst_Person_Character::Interact);
 
+    // FLASHLIGHT INPUT (f)
+    PlayerInputComponent->BindAction("ToggleFlashlight", IE_Pressed, this, &Afirst_Person_Character::ToggleFlashlight);
+    PlayerInputComponent->BindAction("DropItem", IE_Pressed, this, &Afirst_Person_Character::DropCurrentItem);
+    PlayerInputComponent->BindAxis("ScrollInventory", this, &Afirst_Person_Character::ScrollInventory);
+
     // PAUSE MENU INPUT (Escape)
     PlayerInputComponent->BindAction("PauseGame", IE_Pressed, this, &Afirst_Person_Character::TogglePause);
 }
@@ -281,6 +339,143 @@ void Afirst_Person_Character::Vertic_Move(float value)
     {
         AddMovementInput(GetActorForwardVector(), value);
     }
+}
+
+void Afirst_Person_Character::ToggleFlashlight()
+{
+    if (CurrentItemTag == "PickupFlashlight")
+    {
+        if (CurrentBattery > 0)
+        {
+            bFlashlightOn = !bFlashlightOn;
+        }
+       
+        Flashlight->SetVisibility(bFlashlightOn);
+
+        if (BatteryWidget)
+        {
+            BatteryWidget->SetVisibility(bFlashlightOn ? ESlateVisibility::Visible : ESlateVisibility::Hidden);
+        }
+
+        if (CurrentBattery <= 0)
+        {
+            bFlashlightOn = false;
+            Flashlight->SetVisibility(false);
+            if (BatteryWidget)
+            {
+                BatteryWidget->SetVisibility(ESlateVisibility::Hidden);
+            }
+        }
+        UpdateBatteryUI();
+    }
+
+}
+
+void Afirst_Person_Character::AutoTurnOffFlashlight()
+{ 
+    if (CurrentItemTag != "PickupFlashlight")
+    {
+        // Hide battery UI when flashlight is no longer equipped
+        if (BatteryWidget)
+        {
+            BatteryWidget->SetVisibility(ESlateVisibility::Hidden);
+        }
+
+        // Also turn flashlight off
+        bFlashlightOn = false;
+        Flashlight->SetVisibility(false);
+        UE_LOG(LogTemp, Log, TEXT("Flashlight forced OFF because it's not being held"));
+    }
+}
+
+void Afirst_Person_Character::RemoveItemFromInventory()
+{
+    Inventory.RemoveAt(CurrentIndex);
+    InventoryTags.RemoveAt(CurrentIndex);
+
+    if (Inventory.Num() > 0)
+    {
+        CurrentIndex = CurrentIndex % Inventory.Num();
+        CurrentItem = Inventory[CurrentIndex];
+        CurrentItemTag = InventoryTags[CurrentIndex];
+    }
+    else
+    {
+        CurrentIndex = 0;
+        CurrentItem = nullptr;
+        CurrentItemTag = NAME_None;
+    }
+}
+
+
+void Afirst_Person_Character::UpdateBatteryUI()
+{
+    if (BatteryWidget)
+    {
+        UFunction* UpdateFunc = BatteryWidget->FindFunction(FName("UpdateBatteryBars"));
+        if (UpdateFunc)
+        {
+            struct FBatteryParams
+            {
+                int32 BatteryLevel;
+            };
+
+            FBatteryParams Params;
+            Params.BatteryLevel = CurrentBattery;
+
+            BatteryWidget->ProcessEvent(UpdateFunc, &Params);
+        }
+    }
+}
+
+void Afirst_Person_Character::DropCurrentItem()
+{
+    if (!CurrentItem) return;
+
+    FVector SpawnLocation = GetActorLocation() + GetActorForwardVector() * 150.f;
+    FRotator SpawnRotation = GetActorRotation();
+
+    UWorld* World = GetWorld();
+    if (World)
+    {
+        FActorSpawnParameters SpawnParams;
+        AActor* SpawnedActor = World->SpawnActor<AActor>(CurrentItem, SpawnLocation, SpawnRotation, SpawnParams);
+        SpawnedActor->SetActorScale3D(StoredItemScale);
+
+        RemoveItemFromInventory();
+        AutoTurnOffFlashlight();
+    }
+}
+
+void Afirst_Person_Character::ScrollInventory(float AxisValue)
+{
+    if (Inventory.Num() == 0 || FMath::IsNearlyZero(AxisValue)) return;
+
+    int32 TotalSlots = Inventory.Num() + 1;
+
+    CurrentIndex = (CurrentIndex + (AxisValue > 0 ? 1 : -1) + TotalSlots) % TotalSlots;
+
+    if (CurrentIndex == Inventory.Num())
+    {
+        CurrentItem = nullptr;
+        CurrentItemTag = NAME_None;
+        UE_LOG(LogTemp, Log, TEXT("Held item: None"));
+    }
+    else 
+    {
+        CurrentItem = (Inventory.IsValidIndex(CurrentIndex)) ? Inventory[CurrentIndex] : nullptr; 
+        CurrentItemTag = InventoryTags.IsValidIndex(CurrentIndex) ? InventoryTags[CurrentIndex] : NAME_None;
+        if (CurrentItem)
+        {
+            UE_LOG(LogTemp, Log, TEXT("Held item: %s"), *CurrentItem->GetName());
+        }
+        else
+        {
+            UE_LOG(LogTemp, Warning, TEXT("Held item is null (unexpected)"));
+        }
+    }
+    
+    AutoTurnOffFlashlight();
 }
 
 void Afirst_Person_Character::TogglePause()
@@ -319,21 +514,29 @@ void Afirst_Person_Character::ApplyHeadBobbing(float DeltaTime) //Head-Bobbing f
     if (!bEnableHeadBobbing || !cam) return;
 
     float Speed = GetVelocity().Size();
-    //reduce bob when walking
-    float BobbingFactor = 1.0f; //default bobbing factor
-    if (Speed > 10.0f && Speed < 150.0f) //bob when walking
+    float TargetBobbingFactor = 0.0f;
+
+    // Determine target factor based on state
+    if (bIsSprinting)
     {
-        BobbingFactor = 0.5f; //reduce bob intensity when walking
+        TargetBobbingFactor = 1.5f; // intense sprint bob
     }
-    else if (Speed >= 150.0f) //more bob when sprint
+    else if (Speed > 10.0f)
     {
-        BobbingFactor = 1.0f;
+        TargetBobbingFactor = 0.5f; // subtle walking bob
     }
+    else
+    {
+        TargetBobbingFactor = 0.0f; // idle
+    }
+
+    // Smooth interpolation
+    CurrentBobbingFactor = FMath::FInterpTo(CurrentBobbingFactor, TargetBobbingFactor, DeltaTime, 5.0f); // tweak 5.0f as smoothing speed
 
     if (Speed > 10.0f)
     {
         BobbingTime += DeltaTime * BobbingSpeed;
-        float BobbingOffset = FMath::Sin(BobbingTime) * BobbingAmount * BobbingFactor;
+        float BobbingOffset = FMath::Sin(BobbingTime) * BobbingAmount * CurrentBobbingFactor;
 
         //reduce bob when crouching
         if (bWantsToCrouch)
