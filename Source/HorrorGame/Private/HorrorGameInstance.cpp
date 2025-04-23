@@ -38,9 +38,15 @@ void UHorrorGameInstance::SaveGameProgress()
             SaveGameInstance->PlayerLocation = Player->GetActorLocation();
             SaveGameInstance->PlayerRotation = Player->GetActorRotation();
 
-            // save flashlight battery state
+            // save flashlight battery state and Inventory
             SaveGameInstance->SavedBatteryLevel = Player->CurrentBattery;
             SaveGameInstance->bHasPickedUpFlashlight = Player->bHasPickedUpFlashlight;
+            SaveGameInstance->SavedInventory = Player->Inventory;
+            SaveGameInstance->SavedInventoryTags = Player->InventoryTags;
+            SaveGameInstance->SavedCurrentIndex = Player->CurrentIndex;
+            SaveGameInstance->SavedCurrentItemTag = Player->CurrentItemTag;
+            SaveGameInstance->SavedCurrentItem = Player->CurrentItem;
+            SaveGameInstance->SavedItemScale = Player->StoredItemScale;
         }
     }
     SaveGameInstance->InteractedTags = InteractedTags.Array();
@@ -93,7 +99,6 @@ bool UHorrorGameInstance::LoadGameProgress()
     bLoop4Complete = LoadedGame->bLoop4Complete;
     bLoop5Complete = LoadedGame->bLoop5Complete;
     bLoop6Complete = LoadedGame->bLoop6Complete;
-
     InteractedTags = TSet<FName>(LoadedGame->InteractedTags);
 
     APlayerController* PC = UGameplayStatics::GetPlayerController(GetWorld(), 0);
@@ -105,9 +110,15 @@ bool UHorrorGameInstance::LoadGameProgress()
             Player->SetActorLocation(LoadedGame->PlayerLocation);
             Player->SetActorRotation(LoadedGame->PlayerRotation);
 
-            // restore flashlight battery state
+            // restore flashlight battery state and Inventory
             Player->CurrentBattery = LoadedGame->SavedBatteryLevel;
             Player->bHasPickedUpFlashlight = LoadedGame->bHasPickedUpFlashlight;
+            Player->Inventory = LoadedGame->SavedInventory;
+            Player->InventoryTags = LoadedGame->SavedInventoryTags;
+            Player->CurrentIndex = LoadedGame->SavedCurrentIndex;
+            Player->CurrentItemTag = LoadedGame->SavedCurrentItemTag;
+            Player->CurrentItem = LoadedGame->SavedCurrentItem;
+            Player->StoredItemScale = LoadedGame->SavedItemScale;
         }
     }
 
@@ -139,10 +150,21 @@ void UHorrorGameInstance::StartNewGame()
     bLoop5Complete = false;
     bLoop6Complete = false;
 
-    // optionally delete the save file (to force a clean state)
+    // delete save to ensure clean start
     UGameplayStatics::DeleteGameInSlot(TEXT("HorrorSaveSlot"), 0);
 
-    UE_LOG(LogTemp, Warning, TEXT("New Game started. Loop index and puzzle flags reset."));
+    // reset player inventory
+    APlayerController* PC = UGameplayStatics::GetPlayerController(GetWorld(), 0);
+    if (PC)
+    {
+        Afirst_Person_Character* Player = Cast<Afirst_Person_Character>(PC->GetPawn());
+        if (Player)
+        {
+            Player->ResetInventory();
+        }
+    }
+
+    UE_LOG(LogTemp, Warning, TEXT("New Game started. Loop index, flags, and inventory reset."));
 }
 
 

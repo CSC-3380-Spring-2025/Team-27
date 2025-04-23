@@ -200,10 +200,11 @@ void Ainteraction_System::Pickup_Object(Afirst_Person_Character* Character, AAct
 
 void Ainteraction_System::TeleportUsingDataTable(Afirst_Person_Character* Character, AActor* HitActor)
 {
-    if (!Character || !HitActor || !Interaction_Data_Table)
+    if (!Character || !HitActor || !Interaction_Data_Table) return;
+
+    if (Character->AudioComponent)
     {
-        UE_LOG(LogTemp, Error, TEXT("Teleport failed: Missing Character, Actor, or DataTable."));
-        return;
+        Character->AudioComponent->PlayInteractionSound("OpenDoor", HitActor->GetActorLocation());
     }
 
     static const FString ContextString(TEXT("Teleport Lookup"));
@@ -242,18 +243,22 @@ void Ainteraction_System::CompleteLoopDoor(Afirst_Person_Character* Character, A
     if (!Character || !HitActor) return;
 
     UHorrorGameInstance* GI = Cast<UHorrorGameInstance>(UGameplayStatics::GetGameInstance(Character));
+    if (!GI) return;
 
+    // do NOT play sound yet, first check for correct item
     if (Character->CurrentItemTag != "Loop1Key")
     {
         UE_LOG(LogTemp, Warning, TEXT("You must be holding the key to unlock the door."));
         return;
     }
-    else
-    {
-        GI->bLoop1Complete = true;
-    }
 
-    if (!GI) return;
+    // only now mark the loop complete and play sound
+    GI->bLoop1Complete = true;
+
+    if (Character->AudioComponent)
+    {
+        Character->AudioComponent->PlayInteractionSound("ExitDoor", HitActor->GetActorLocation());
+    }
 
     int32 CurrentLoop = GI->GetLoopIndex();
     bool bCanExit = false;
@@ -271,12 +276,12 @@ void Ainteraction_System::CompleteLoopDoor(Afirst_Person_Character* Character, A
         return;
     }
 
+    Character->ResetInventory();
+
     FVector NewLocation = FVector(-3357.690591f, -395.572065f, 92.603541f); // replace with desired spawn (test), AFTER TEST REPLACE WITH A NEW LEVEL SPAWN FOR EACH LOOP
     Character->SetActorLocation(NewLocation);
 
     GI->AdvanceLoop();
-
-    Character->RemoveItemFromInventory();
 
     UE_LOG(LogTemp, Warning, TEXT("Loop %d completed! Now entering Loop %d."), CurrentLoop, GI->GetLoopIndex());
 }
