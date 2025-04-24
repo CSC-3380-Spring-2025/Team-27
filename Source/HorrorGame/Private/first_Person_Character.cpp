@@ -123,10 +123,7 @@ void Afirst_Person_Character::BeginPlay()
     Interaction_System = GetWorld()->SpawnActor<Ainteraction_System>(Ainteraction_System::StaticClass(), FVector::ZeroVector, FRotator::ZeroRotator);
 
     // apply user settings on game start
-    if (GEngine && GEngine->GetGameUserSettings())
-    {
-        GEngine->GetGameUserSettings()->ApplySettings(false); // false = dont restart settings, keep them throughout
-    }
+    InitializeGraphicsSettings();
 
     //add crosshair widget to viewpoint
     if (WB_CrosshairClass)
@@ -329,6 +326,20 @@ void Afirst_Person_Character::Tick(float DeltaTime)
                 UpdateBatteryUI(); // custom function to update widget
             }
         }
+    }
+}
+
+void Afirst_Person_Character::InitializeGraphicsSettings()
+{
+    if (GEngine && GEngine->GetGameUserSettings())
+    {
+        UGameUserSettings* Settings = GEngine->GetGameUserSettings();
+
+        // Load previous saved settings (critical for standalone)
+        Settings->LoadSettings();
+
+        // Apply settings without restarting the engine
+        Settings->ApplySettings(false);
     }
 }
 
