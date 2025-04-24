@@ -31,6 +31,7 @@ protected:
 public:
     virtual void Tick(float DeltaTime) override;
     virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
+    void InitializeGraphicsSettings();
 
     void StartDoorTransition(const FVector& TargetLocation);
    
