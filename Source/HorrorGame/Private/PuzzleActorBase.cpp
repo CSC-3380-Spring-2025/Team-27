@@ -14,28 +14,27 @@ void APuzzleActorBase::BeginPlay()
     UHorrorGameInstance* GI = Cast<UHorrorGameInstance>(UGameplayStatics::GetGameInstance(GetWorld()));
     if (!GI) return;
 
-    int32 CurrentLoop = GI->GetLoopIndex();
+    const int32 CurrentLoop = GI->GetLoopIndex();
 
     if (CurrentLoop != PuzzleLoopIndex)
     {
-        Destroy();
+        SetActorHiddenInGame(true);
+        SetActorEnableCollision(false);
+        SetActorTickEnabled(false);
         return;
     }
 
-    bool bComplete = false;
-    switch (PuzzleLoopIndex)
+    if (PuzzleTag != NAME_None)
     {
-    case 1: bComplete = GI->bLoop1Complete; break;
-    case 2: bComplete = GI->bLoop2Complete; break;
-    case 3: bComplete = GI->bLoop3Complete; break;
-    case 4: bComplete = GI->bLoop4Complete; break;
-    case 5: bComplete = GI->bLoop5Complete; break;
-    case 6: bComplete = GI->bLoop6Complete; break;
-    default: break;
+        if (GI->InventoryTags.Contains(PuzzleTag) || GI->HasInteractedWith(PuzzleTag))
+        {
+            UE_LOG(LogTemp, Warning, TEXT("PuzzleActor '%s' already picked up or interacted with (Tag: %s). Destroying."), *GetName(), *PuzzleTag.ToString());
+            Destroy();
+            return;
+        }
     }
-
-    if (bComplete)
+    else
     {
-        Destroy();
+        UE_LOG(LogTemp, Warning, TEXT("PuzzleActor '%s' has no PuzzleTag set."), *GetName());
     }
 }

@@ -99,6 +99,16 @@ void Ainteraction_System::Perform_Interaction(Afirst_Person_Character* Character
     if (!HitActor) UE_LOG(LogTemp, Error, TEXT("Perform_Interaction failed: HitActor is nullptr."));
     if (!Interaction_Data_Table) UE_LOG(LogTemp, Error, TEXT("Perform_Interaction failed: DataTable is nullptr."));
 
+    if (HitActor->Tags.Contains("LockedDoor"))
+    {
+        if (Character->AudioComponent)
+        {
+            Character->AudioComponent->PlayInteractionSound("LockedDoor", HitActor->GetActorLocation());
+        }
+
+        UE_LOG(LogTemp, Warning, TEXT("Locked door sound played for actor: %s"), *HitActor->GetName());
+        return;
+    }
 
     static const FString ContextString(TEXT("Interaction Lookup"));
 
@@ -245,52 +255,102 @@ void Ainteraction_System::CompleteLoopDoor(Afirst_Person_Character* Character, A
     UHorrorGameInstance* GI = Cast<UHorrorGameInstance>(UGameplayStatics::GetGameInstance(Character));
     if (!GI) return;
 
-    // do NOT play sound yet, first check for correct item
-    if (Character->CurrentItemTag != "Loop1Key")
+    int32 CurrentLoop = GI->GetLoopIndex();
+    bool bCanExit = false;
+
+    // Puzzle Completion Check
+    switch (CurrentLoop)
     {
-        UE_LOG(LogTemp, Warning, TEXT("You must be holding the key to unlock the door."));
+    case 1:
+        if (Character->CurrentItemTag != "Loop1Key")
+        {
+            UE_LOG(LogTemp, Warning, TEXT("You must be holding the key to unlock the door."));
+            if (Character->AudioComponent)
+            {
+                Character->AudioComponent->PlayInteractionSound("LockedDoor", HitActor->GetActorLocation());
+            }
+            return;
+        }
+        GI->bLoop1Complete = true;
+        bCanExit = true;
+        break;
+    case 2:
+    {
+        bool bHasNote = Character->InventoryTags.Contains("Room2Note");
+
+        if (bHasNote)
+        {
+            GI->bLoop2Complete = true;
+            bCanExit = true;
+        }
+        else
+        {
+            UE_LOG(LogTemp, Warning, TEXT("You must have the Room2Note in your inventory to unlock the door."));
+            if (Character->AudioComponent)
+            {
+                Character->AudioComponent->PlayInteractionSound("LockedDoor", HitActor->GetActorLocation());
+            }
+            return;
+        }
+        break;
+    }
+    case 3: bCanExit = GI->bLoop3Complete; break;
+    case 4: bCanExit = GI->bLoop4Complete; break;
+    default:
+        UE_LOG(LogTemp, Warning, TEXT("Unhandled loop index: %d"), CurrentLoop);
         return;
     }
 
-    // only now mark the loop complete and play sound
-    GI->bLoop1Complete = true;
+    // generic fallback for incomplete puzzle
+    if (!bCanExit)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("Puzzle for Loop %d is not yet complete."), CurrentLoop);
+        if (Character->AudioComponent)
+        {
+            Character->AudioComponent->PlayInteractionSound("LockedDoor", HitActor->GetActorLocation());
+        }
+        return;
+    }
 
+    // play door open sound
     if (Character->AudioComponent)
     {
         Character->AudioComponent->PlayInteractionSound("ExitDoor", HitActor->GetActorLocation());
     }
 
-    int32 CurrentLoop = GI->GetLoopIndex();
-    bool bCanExit = false;
+    // reset inventory so player doesnt bring stuff into the next loop
+    Character->ResetInventory();
 
-    switch (CurrentLoop)
-    {
-    case 1: bCanExit = GI->bLoop1Complete; break;
-    case 2: bCanExit = GI->bLoop2Complete; break;
-    case 3: bCanExit = GI->bLoop3Complete; break;
-    }
+    // advance loop
+    GI->AdvanceLoop();
+    int32 NextLoop = GI->GetLoopIndex();
 
-    if (!bCanExit)
+    FName NextLevelName;
+    switch (NextLoop)
     {
-        UE_LOG(LogTemp, Warning, TEXT("Puzzle not completed. Door remains locked."));
+    case 2: NextLevelName = FName("Room2"); break;
+    case 3: NextLevelName = FName("Room3"); break;
+    case 4: NextLevelName = FName("Room4"); break;
+    default:
+        UE_LOG(LogTemp, Warning, TEXT("No level mapped for Loop %d."), NextLoop);
         return;
     }
 
-    Character->ResetInventory();
+    // play the fade transition animation and then load level
+    APlayerController* PC = UGameplayStatics::GetPlayerController(GetWorld(), 0);
+    if (PC && PC->PlayerCameraManager)
+    {
+        float FadeDuration = Character->TeleportFadeDuration;
+        PC->PlayerCameraManager->StartCameraFade(0.f, 1.f, FadeDuration, FLinearColor::Black, false, true);
 
-    FVector NewLocation = FVector(-3357.690591f, -395.572065f, 92.603541f); // replace with desired spawn (test), AFTER TEST REPLACE WITH A NEW LEVEL SPAWN FOR EACH LOOP
-    Character->SetActorLocation(NewLocation);
+        FTimerHandle DelayHandle;
+        GetWorld()->GetTimerManager().SetTimer(DelayHandle, [NextLevelName]()
+            {
+                UGameplayStatics::OpenLevel(GWorld, NextLevelName);
+            }, FadeDuration, false);
+    }
 
-    GI->AdvanceLoop();
-
-    UE_LOG(LogTemp, Warning, TEXT("Loop %d completed! Now entering Loop %d."), CurrentLoop, GI->GetLoopIndex());
-}
-
-
-
-void Ainteraction_System::View_Note(Afirst_Person_Character* Character, AActor* Hit_Actor)
-{
-    UE_LOG(LogTemp, Log, TEXT("Viewed a note!"));
+    UE_LOG(LogTemp, Warning, TEXT("Loop %d complete. Fading to: %s"), CurrentLoop, *NextLevelName.ToString());
 }
 
 void Ainteraction_System::RestoreFlashlightBattery(Afirst_Person_Character* Character, AActor* HitActor)

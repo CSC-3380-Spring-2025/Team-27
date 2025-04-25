@@ -12,16 +12,36 @@
 
 void UHorrorGameInstance::SaveGameProgress()
 {
-    UHorrorSaveGame* SaveGameInstance = Cast<UHorrorSaveGame>(UGameplayStatics::CreateSaveGameObject(UHorrorSaveGame::StaticClass()));
-
-    if (!SaveGameInstance)
+    Afirst_Person_Character* Character = Cast<Afirst_Person_Character>(UGameplayStatics::GetPlayerCharacter(GetWorld(), 0));
+    if (!Character)
     {
-        UE_LOG(LogTemp, Error, TEXT("Failed to create SaveGame object!"));
+        UE_LOG(LogTemp, Warning, TEXT("SaveGameProgress failed: No valid player character."));
         return;
     }
 
-    // Save loop index and puzzle flags
+    UHorrorSaveGame* SaveGameInstance = Cast<UHorrorSaveGame>(UGameplayStatics::CreateSaveGameObject(UHorrorSaveGame::StaticClass()));
+    if (!SaveGameInstance)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("SaveGameProgress failed: Couldn't create SaveGame instance."));
+        return;
+    }
+
+    SaveGameInstance->PlayerLocation = Character->GetActorLocation();
+    SaveGameInstance->PlayerRotation = Character->GetActorRotation();
     SaveGameInstance->SavedLoopIndex = CurrentLoopIndex;
+    SaveGameInstance->InteractedTags = InteractedTags.Array();
+    SaveGameInstance->SavedBatteryLevel = Character->CurrentBattery;
+    SaveGameInstance->bHasPickedUpFlashlight = Character->bHasPickedUpFlashlight;
+
+    // Save inventory
+    SaveGameInstance->SavedInventory = Character->Inventory;
+    SaveGameInstance->SavedInventoryTags = Character->InventoryTags;
+    SaveGameInstance->SavedCurrentItem = Character->CurrentItem;
+    SaveGameInstance->SavedCurrentItemTag = Character->CurrentItemTag;
+    SaveGameInstance->SavedCurrentIndex = Character->CurrentIndex;
+    SaveGameInstance->SavedItemScale = Character->StoredItemScale;
+
+    // Save puzzle flags
     SaveGameInstance->bLoop1Complete = bLoop1Complete;
     SaveGameInstance->bLoop2Complete = bLoop2Complete;
     SaveGameInstance->bLoop3Complete = bLoop3Complete;
@@ -29,49 +49,16 @@ void UHorrorGameInstance::SaveGameProgress()
     SaveGameInstance->bLoop5Complete = bLoop5Complete;
     SaveGameInstance->bLoop6Complete = bLoop6Complete;
 
-    APlayerController* PC = UGameplayStatics::GetPlayerController(GetWorld(), 0);
-    if (PC)
+    // Save to slot
+    if (UGameplayStatics::SaveGameToSlot(SaveGameInstance, TEXT("HorrorSaveSlot"), 0))
     {
-        Afirst_Person_Character* Player = Cast<Afirst_Person_Character>(PC->GetPawn());
-        if (Player)
-        {
-            SaveGameInstance->PlayerLocation = Player->GetActorLocation();
-            SaveGameInstance->PlayerRotation = Player->GetActorRotation();
-
-            // save flashlight battery state and Inventory
-            SaveGameInstance->SavedBatteryLevel = Player->CurrentBattery;
-            SaveGameInstance->bHasPickedUpFlashlight = Player->bHasPickedUpFlashlight;
-            SaveGameInstance->SavedInventory = Player->Inventory;
-            SaveGameInstance->SavedInventoryTags = Player->InventoryTags;
-            SaveGameInstance->SavedCurrentIndex = Player->CurrentIndex;
-            SaveGameInstance->SavedCurrentItemTag = Player->CurrentItemTag;
-            SaveGameInstance->SavedCurrentItem = Player->CurrentItem;
-            SaveGameInstance->SavedItemScale = Player->StoredItemScale;
-        }
-    }
-    SaveGameInstance->InteractedTags = InteractedTags.Array();
-
-    const FString SlotName = TEXT("HorrorSaveSlot");
-    bool bSuccess = UGameplayStatics::SaveGameToSlot(SaveGameInstance, SlotName, 0);
-    if (bSuccess)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("Game Saved: Loop = %d | L1 = %s | L2 = %s | L3 = %s"),
-            CurrentLoopIndex,
-            bLoop1Complete ? TEXT("true") : TEXT("false"),
-            bLoop2Complete ? TEXT("true") : TEXT("false"),
-            bLoop3Complete ? TEXT("true") : TEXT("false"));
-
-        if (GEngine)
-        {
-            GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Green, TEXT("Game Saved!"));
-        }
+        UE_LOG(LogTemp, Warning, TEXT("Game saved successfully."));
     }
     else
     {
-        UE_LOG(LogTemp, Error, TEXT("Failed to save game to slot!"));
+        UE_LOG(LogTemp, Error, TEXT("Failed to save game to slot."));
     }
 }
-
 
 bool UHorrorGameInstance::LoadGameProgress()
 {
@@ -84,14 +71,13 @@ bool UHorrorGameInstance::LoadGameProgress()
     }
 
     UHorrorSaveGame* LoadedGame = Cast<UHorrorSaveGame>(UGameplayStatics::LoadGameFromSlot(SlotName, 0));
-
     if (!LoadedGame)
     {
         UE_LOG(LogTemp, Error, TEXT("Failed to load save game object!"));
         return false;
     }
 
-    // Restore saved values
+    // Restore basic game state
     CurrentLoopIndex = LoadedGame->SavedLoopIndex;
     bLoop1Complete = LoadedGame->bLoop1Complete;
     bLoop2Complete = LoadedGame->bLoop2Complete;
@@ -101,6 +87,13 @@ bool UHorrorGameInstance::LoadGameProgress()
     bLoop6Complete = LoadedGame->bLoop6Complete;
     InteractedTags = TSet<FName>(LoadedGame->InteractedTags);
 
+    UE_LOG(LogTemp, Warning, TEXT("Game Loaded: Loop = %d | L1 = %s | L2 = %s | L3 = %s"),
+        CurrentLoopIndex,
+        bLoop1Complete ? TEXT("true") : TEXT("false"),
+        bLoop2Complete ? TEXT("true") : TEXT("false"),
+        bLoop3Complete ? TEXT("true") : TEXT("false"));
+
+    // Restore player state
     APlayerController* PC = UGameplayStatics::GetPlayerController(GetWorld(), 0);
     if (PC)
     {
@@ -110,7 +103,6 @@ bool UHorrorGameInstance::LoadGameProgress()
             Player->SetActorLocation(LoadedGame->PlayerLocation);
             Player->SetActorRotation(LoadedGame->PlayerRotation);
 
-            // restore flashlight battery state and Inventory
             Player->CurrentBattery = LoadedGame->SavedBatteryLevel;
             Player->bHasPickedUpFlashlight = LoadedGame->bHasPickedUpFlashlight;
             Player->Inventory = LoadedGame->SavedInventory;
@@ -119,23 +111,13 @@ bool UHorrorGameInstance::LoadGameProgress()
             Player->CurrentItemTag = LoadedGame->SavedCurrentItemTag;
             Player->CurrentItem = LoadedGame->SavedCurrentItem;
             Player->StoredItemScale = LoadedGame->SavedItemScale;
+
+            UE_LOG(LogTemp, Warning, TEXT("Player restored to location: %s"), *LoadedGame->PlayerLocation.ToString());
         }
-    }
-
-    UE_LOG(LogTemp, Warning, TEXT("Game Loaded: Loop = %d | L1 = %s | L2 = %s | L3 = %s"),
-        CurrentLoopIndex,
-        bLoop1Complete ? TEXT("true") : TEXT("false"),
-        bLoop2Complete ? TEXT("true") : TEXT("false"),
-        bLoop3Complete ? TEXT("true") : TEXT("false"));
-
-    if (GEngine)
-    {
-        GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Yellow, TEXT("Game Loaded!"));
     }
 
     return true;
 }
-
 
 void UHorrorGameInstance::StartNewGame()
 {
@@ -149,6 +131,9 @@ void UHorrorGameInstance::StartNewGame()
     bLoop4Complete = false;
     bLoop5Complete = false;
     bLoop6Complete = false;
+
+    // clear interacted tags so puzzles reset
+    InteractedTags.Empty();
 
     // delete save to ensure clean start
     UGameplayStatics::DeleteGameInSlot(TEXT("HorrorSaveSlot"), 0);
