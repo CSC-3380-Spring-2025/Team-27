@@ -84,14 +84,13 @@ bool UHorrorGameInstance::LoadGameProgress()
     }
 
     UHorrorSaveGame* LoadedGame = Cast<UHorrorSaveGame>(UGameplayStatics::LoadGameFromSlot(SlotName, 0));
-
     if (!LoadedGame)
     {
         UE_LOG(LogTemp, Error, TEXT("Failed to load save game object!"));
         return false;
     }
 
-    // Restore saved values
+    // Restore basic game state
     CurrentLoopIndex = LoadedGame->SavedLoopIndex;
     bLoop1Complete = LoadedGame->bLoop1Complete;
     bLoop2Complete = LoadedGame->bLoop2Complete;
@@ -101,6 +100,13 @@ bool UHorrorGameInstance::LoadGameProgress()
     bLoop6Complete = LoadedGame->bLoop6Complete;
     InteractedTags = TSet<FName>(LoadedGame->InteractedTags);
 
+    UE_LOG(LogTemp, Warning, TEXT("Game Loaded: Loop = %d | L1 = %s | L2 = %s | L3 = %s"),
+        CurrentLoopIndex,
+        bLoop1Complete ? TEXT("true") : TEXT("false"),
+        bLoop2Complete ? TEXT("true") : TEXT("false"),
+        bLoop3Complete ? TEXT("true") : TEXT("false"));
+
+    // Restore player state
     APlayerController* PC = UGameplayStatics::GetPlayerController(GetWorld(), 0);
     if (PC)
     {
@@ -110,7 +116,6 @@ bool UHorrorGameInstance::LoadGameProgress()
             Player->SetActorLocation(LoadedGame->PlayerLocation);
             Player->SetActorRotation(LoadedGame->PlayerRotation);
 
-            // restore flashlight battery state and Inventory
             Player->CurrentBattery = LoadedGame->SavedBatteryLevel;
             Player->bHasPickedUpFlashlight = LoadedGame->bHasPickedUpFlashlight;
             Player->Inventory = LoadedGame->SavedInventory;
@@ -119,23 +124,13 @@ bool UHorrorGameInstance::LoadGameProgress()
             Player->CurrentItemTag = LoadedGame->SavedCurrentItemTag;
             Player->CurrentItem = LoadedGame->SavedCurrentItem;
             Player->StoredItemScale = LoadedGame->SavedItemScale;
+
+            UE_LOG(LogTemp, Warning, TEXT("Player restored to location: %s"), *LoadedGame->PlayerLocation.ToString());
         }
-    }
-
-    UE_LOG(LogTemp, Warning, TEXT("Game Loaded: Loop = %d | L1 = %s | L2 = %s | L3 = %s"),
-        CurrentLoopIndex,
-        bLoop1Complete ? TEXT("true") : TEXT("false"),
-        bLoop2Complete ? TEXT("true") : TEXT("false"),
-        bLoop3Complete ? TEXT("true") : TEXT("false"));
-
-    if (GEngine)
-    {
-        GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Yellow, TEXT("Game Loaded!"));
     }
 
     return true;
 }
-
 
 void UHorrorGameInstance::StartNewGame()
 {
@@ -149,6 +144,9 @@ void UHorrorGameInstance::StartNewGame()
     bLoop4Complete = false;
     bLoop5Complete = false;
     bLoop6Complete = false;
+
+    // clear interacted tags so puzzles reset
+    InteractedTags.Empty();
 
     // delete save to ensure clean start
     UGameplayStatics::DeleteGameInSlot(TEXT("HorrorSaveSlot"), 0);

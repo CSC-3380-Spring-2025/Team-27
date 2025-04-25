@@ -126,8 +126,12 @@ void UCharacterAudioComponent::LoadInteractionSounds()
         };
 
     // Door Opening Sound
-    InteractionMap.Add("OpenDoor", LoadCue(TEXT("/Game/MusicSoundFX/SmallSoundKit/SSKCue/DoorsCue/Drs_Wood_Door_Open_01_Cue.Drs_Wood_Door_Open_01_Cue")));
-    InteractionMap.Add("ExitDoor", LoadCue(TEXT("/Game/MusicSoundFX/SmallSoundKit/SSKCue/DoorsCue/Drs_Wood_Door_Open_01_Cue.Drs_Wood_Door_Open_01_Cue")));
+    InteractionMap.Add("OpenDoor", LoadCue(TEXT("/Game/MusicSoundFX/DoorSounds/OpenDoorSound/Drs_Wood_Door_Open_01_Cue.Drs_Wood_Door_Open_01_Cue")));
+    InteractionMap.Add("ExitDoor", LoadCue(TEXT("/Game/MusicSoundFX/DoorSounds/OpenDoorSound/Drs_Wood_Door_Open_01_Cue.Drs_Wood_Door_Open_01_Cue")));
+
+    // Door Locked Sound
+    InteractionMap.Add("LockedDoor", LoadCue(TEXT("/Game/MusicSoundFX/DoorSounds/LockedDoorSound/LockedDoorSound_Cue.LockedDoorSound_Cue")));
+
 
     // Flashlight On/Off Audio
     FlashlightOnSound = LoadCue(TEXT("/Game/MusicSoundFX/FlashlightAudio/FlashlightOnClickAudio_Cue.FlashlightOnClickAudio_Cue"));

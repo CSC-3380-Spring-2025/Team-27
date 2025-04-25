@@ -14,28 +14,41 @@ void APuzzleActorBase::BeginPlay()
     UHorrorGameInstance* GI = Cast<UHorrorGameInstance>(UGameplayStatics::GetGameInstance(GetWorld()));
     if (!GI) return;
 
-    int32 CurrentLoop = GI->GetLoopIndex();
+    const int32 CurrentLoop = GI->GetLoopIndex();
 
+    // Hide the actor if it's not part of this loop
     if (CurrentLoop != PuzzleLoopIndex)
     {
-        Destroy();
+        SetActorHiddenInGame(true);
+        SetActorEnableCollision(false);
+        SetActorTickEnabled(false);
+        UE_LOG(LogTemp, Log, TEXT("PuzzleActor '%s' is hidden (loop %d not active)."), *GetName(), CurrentLoop);
         return;
     }
 
-    bool bComplete = false;
-    switch (PuzzleLoopIndex)
+    // If there's a valid tag and it's already been interacted with, destroy it
+    if (Tags.Num() > 0)
     {
-    case 1: bComplete = GI->bLoop1Complete; break;
-    case 2: bComplete = GI->bLoop2Complete; break;
-    case 3: bComplete = GI->bLoop3Complete; break;
-    case 4: bComplete = GI->bLoop4Complete; break;
-    case 5: bComplete = GI->bLoop5Complete; break;
-    case 6: bComplete = GI->bLoop6Complete; break;
-    default: break;
-    }
+        FName Tag = Tags[0];
+        if (Tag != NAME_None)
+        {
+            if (GI->HasInteractedWith(Tag))
+            {
+                UE_LOG(LogTemp, Warning, TEXT("PuzzleActor '%s' already interacted with (tag: %s). Destroying."),
+                    *GetName(), *Tag.ToString());
+                Destroy();
+                return;
+            }
 
-    if (bComplete)
+            UE_LOG(LogTemp, Log, TEXT("PuzzleActor '%s' is active with tag '%s' for Loop %d."), *GetName(), *Tag.ToString(), CurrentLoop);
+        }
+        else
+        {
+            UE_LOG(LogTemp, Warning, TEXT("PuzzleActor '%s' has an invalid tag (NAME_None). Will remain active."), *GetName());
+        }
+    }
+    else
     {
-        Destroy();
+        UE_LOG(LogTemp, Warning, TEXT("PuzzleActor '%s' has no tags set. Will remain active."), *GetName());
     }
 }

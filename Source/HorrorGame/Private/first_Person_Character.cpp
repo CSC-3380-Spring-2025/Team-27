@@ -175,27 +175,42 @@ void Afirst_Person_Character::BeginPlay()
     {
         UE_LOG(LogTemp, Error, TEXT("Failed to load or assign Interaction Data Table!"));
     }
+
+    // Handle FadeFromMainMenu flow (used by Continue button)
     APlayerController* PC = Cast<APlayerController>(GetController());
     if (PC && PC->PlayerCameraManager)
     {
         FString OptionValue = UGameplayStatics::ParseOption(UGameplayStatics::GetGameMode(this)->OptionsString, TEXT("FadeFromMainMenu"));
+
         if (OptionValue.Equals("true", ESearchCase::IgnoreCase))
         {
-            // start fully black
+            // Start fully black
             PC->PlayerCameraManager->StartCameraFade(1.f, 1.f, 0.f, FLinearColor::Black, true, true);
 
-            // fade out from black after slight delay
+            // Delayed fade from black (safe with WeakPC)
+            TWeakObjectPtr<APlayerController> WeakPC(PC);
             FTimerHandle FadeInHandle;
-            GetWorld()->GetTimerManager().SetTimer(FadeInHandle, [PC]()
+            GetWorld()->GetTimerManager().SetTimer(FadeInHandle, [WeakPC]()
                 {
-                    PC->PlayerCameraManager->StartCameraFade(1.f, 0.f, 1.0f, FLinearColor::Black, false, true);
-                }, 0.1f, false); // change this so user waits 2 seconds on a black screen 
-            UHorrorGameInstance* GI = Cast<UHorrorGameInstance>(UGameplayStatics::GetGameInstance(this));
-            if (GI)
+                    if (WeakPC.IsValid() && WeakPC->PlayerCameraManager)
+                    {
+                        WeakPC->PlayerCameraManager->StartCameraFade(1.f, 0.f, 1.0f, FLinearColor::Black, false, true);
+                    }
+                }, 0.1f, false);
+
+            // Restore save data
+            if (GameInstance)
             {
-                GI->LoadGameProgress(); // this will auto-apply location + flags
+                GameInstance->LoadGameProgress(); // restores player location, inventory, flags
             }
         }
+    }
+
+    // Debug: Print current loop
+    if (GameInstance)
+    {
+        int32 Loop = GameInstance->GetLoopIndex();
+        UE_LOG(LogTemp, Warning, TEXT("Current Loop: %d"), Loop);
     }
 }
 
