@@ -15,6 +15,9 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Puzzle")
     int32 PuzzleLoopIndex = 1;
 
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Puzzle")
+    FName PuzzleTag = NAME_None;
+
 protected:
     virtual void BeginPlay() override;
 };

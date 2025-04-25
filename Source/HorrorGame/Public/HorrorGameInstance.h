@@ -85,8 +85,13 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void SaveGameProgress();
 
-	UPROPERTY()
+	// Tags of puzzles/actors the player has interacted with (doors, buttons, etc.)
+	UPROPERTY(BlueprintReadWrite)
 	TSet<FName> InteractedTags;
+
+	// Tags of items the player owns (notes, batteries, keys, etc.)
+	UPROPERTY(BlueprintReadWrite)
+	TSet<FName> InventoryTags;
 
 	UFUNCTION(BlueprintCallable)
 	void MarkTagInteracted(FName Tag) { InteractedTags.Add(Tag); }
