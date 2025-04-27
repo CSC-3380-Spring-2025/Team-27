@@ -40,6 +40,12 @@ protected:
     UPROPERTY()
     USoundBase* FlashlightOffSound;
 
+    // Radio Button Audio
+    /* Need to add sound files/cue into new content folder; This variable calls to nothing right now. -cliff
+    UPROPERTY()
+    USoundBase* RadioButtonSound;
+    */
+
     // Footstep Audio
     UPROPERTY()
     TMap<TEnumAsByte<EPhysicalSurface>, FFootstepSounds> FootstepMap;

@@ -82,6 +82,20 @@ void UCharacterAudioComponent::PlayFlashlightToggleSound(bool bTurningOn, FVecto
     }
 }
 
+//void UCharacterAudioComponent::PlayRadioButtonSound(bool bTurningOn, FVector Location)
+//{
+//    USoundBase* Cue = RadioButtonSound;
+//
+//    if (Cue)
+//    {
+//        UGameplayStatics::PlaySoundAtLocation(this, Cue, Location);
+//    }
+//    else
+//    {
+//        UE_LOG(LogTemp, Warning, TEXT("Missing flashlight sound for state: %s"), bTurningOn ? TEXT("On") : TEXT("Off"));
+//    }
+//}
+
 void UCharacterAudioComponent::LoadFootstepSounds()
 {
     auto LoadCue = [](const TCHAR* Path) -> USoundBase*
@@ -136,4 +150,11 @@ void UCharacterAudioComponent::LoadInteractionSounds()
     // Flashlight On/Off Audio
     FlashlightOnSound = LoadCue(TEXT("/Game/MusicSoundFX/FlashlightAudio/FlashlightOnClickAudio_Cue.FlashlightOnClickAudio_Cue"));
     FlashlightOffSound = LoadCue(TEXT("/Game/MusicSoundFX/FlashlightAudio/FlashlightOffClickAudio_Cue.FlashlightOffClickAudio_Cue"));
+
+    // Radio Button Sound
+    /*
+    * Need to add sound files/cue into new content folder; This variable points to nothing right now. -cliff
+    RadioButtonSound = LoadCue(TEXT("/Game/MusicSoundFX/RadioAudio/RadioButton_Cue.RadioButton_Cue"))
+    *
+    */
 }
