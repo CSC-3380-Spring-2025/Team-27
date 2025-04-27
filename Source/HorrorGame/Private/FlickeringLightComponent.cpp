@@ -38,4 +38,7 @@ void UFlickeringLightComponent::ScheduleNextFlicker()
 
 	float NextInterval = FMath::RandRange(RandomFlickerIntervalMin, RandomFlickerIntervalMax);
 	GetWorld()->GetTimerManager().SetTimer(FlickerTimerHandle, this, &UFlickeringLightComponent::TriggerRandomFlicker, NextInterval, false);
+
 }
+
+//this one is for random light flickers
