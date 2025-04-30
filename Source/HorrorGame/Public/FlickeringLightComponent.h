@@ -2,10 +2,11 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
+#include "Components/LightComponent.h"
 #include "FlickeringLightComponent.generated.h"
 
 UCLASS(ClassGroup = (Custom), meta = (BlueprintSpawnableComponent))
-class YOURGAME_API UFlickeringLightComponent : public UActorComponent
+class HORRORGAME_API UFlickeringLightComponent : public UActorComponent
 {
 	GENERATED_BODY()
 
