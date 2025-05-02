@@ -52,7 +52,7 @@ protected:
 
 private:
 	// Interaction routing
-	void Perform_Interaction(Afirst_Person_Character* Character, AActor* HitActor);
+	void Perform_Interaction(Afirst_Person_Character* Character, AActor* HitActor, const FHitResult& Hit);
 
 	// Pickup interactive objects
 	void Pickup_Object(Afirst_Person_Character* Character, AActor* HitActor);
