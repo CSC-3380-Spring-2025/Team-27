@@ -68,6 +68,9 @@ public:
     class USpotLightComponent* Flashlight;
 
     UPROPERTY(BlueprintReadWrite)
+    bool bHasPickedUpBattery = false;
+
+    UPROPERTY(BlueprintReadWrite)
     bool bHasPickedUpFlashlight = false;
 
     bool bFlashlightOn;
