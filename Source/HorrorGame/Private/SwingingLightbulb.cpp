@@ -1,4 +1,3 @@
-#include "HorrorGame.h"
 #include "SwingingLightbulb.h"
 #include "Components/SceneComponent.h"
 #include "Components/StaticMeshComponent.h"
