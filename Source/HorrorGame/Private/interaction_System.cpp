@@ -4,6 +4,7 @@
 #include "Blueprint/UserWidget.h"
 #include "Engine/World.h"
 #include "first_Person_Character.h"
+#include "InteractiveAnimationBase.h"
 #include "Kismet/KismetMathLibrary.h"
 #include "Camera/CameraComponent.h"
 #include "Components/WidgetComponent.h"
@@ -89,7 +90,7 @@ void Ainteraction_System::Interact(Afirst_Person_Character* Character)
 
     if (HitActor)
     {
-        Perform_Interaction(Character, HitActor);
+        Perform_Interaction(Character, HitActor, Hit);
     }
     else
     {
@@ -98,7 +99,7 @@ void Ainteraction_System::Interact(Afirst_Person_Character* Character)
     }
 }
 
-void Ainteraction_System::Perform_Interaction(Afirst_Person_Character* Character, AActor* HitActor)
+void Ainteraction_System::Perform_Interaction(Afirst_Person_Character* Character, AActor* HitActor, const FHitResult& Hit)
 {
     if (!HitActor) return;
 
@@ -115,6 +116,39 @@ void Ainteraction_System::Perform_Interaction(Afirst_Person_Character* Character
         {
             (this->*Interaction_Functions[Tag])(Character, HitActor);
             return;
+        }
+    }
+
+    UPrimitiveComponent* HitComponent = Hit.GetComponent();
+    if (HitComponent)
+    {
+        for (const FName& CompTag : HitComponent->ComponentTags)
+        {
+            if (CompTag.ToString().StartsWith("Drawer"))
+            {
+                FName FuncName = FName("OnDrawerInteraction");
+
+                struct FParams
+                {
+                    UStaticMeshComponent* Drawer;
+                    FName DrawerTag;
+                } Params;
+
+                Params.Drawer = Cast<UStaticMeshComponent>(HitComponent);
+                Params.DrawerTag = CompTag;
+
+                if (Params.Drawer && HitActor->GetClass()->FindFunctionByName(FuncName))
+                {
+                    HitActor->ProcessEvent(HitActor->FindFunction(FuncName), &Params);
+                    UE_LOG(LogTemp, Log, TEXT("Called OnDrawerInteraction for tag: %s"), *CompTag.ToString());
+                }
+                else
+                {
+                    UE_LOG(LogTemp, Error, TEXT("Failed to find OnDrawerInteraction or cast drawer"));
+                }
+
+                return;
+            }
         }
     }
 
