@@ -1,3 +1,4 @@
+#include "HorrorGame/HorrorGame.h"
 #include "SwingingLightbulb.h"
 #include "Components/SceneComponent.h"
 #include "Components/StaticMeshComponent.h"
@@ -19,8 +20,20 @@ ASwingingLightbulb::ASwingingLightbulb()
     LowPolyLightBulb = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("LowPolyLightBulb"));
     LowPolyLightBulb->SetupAttachment(FixtureSphere);
     LowPolyLightBulb->SetSimulatePhysics(true);
-    LowPolyLightBulb->SetStaticMesh(ConstructorHelpers::FObjectFinder<UStaticMesh>(TEXT("StaticMesh'/Game/.../low_poly_lamp.low_poly_lamp'")).Object);
-    LowPolyLightBulb->SetMassOverrideInKg(NAME_None, 5.0f);
+
+    // Load and assign the sphere mesh
+    static ConstructorHelpers::FObjectFinder<UStaticMesh> SphereMeshAsset(TEXT("StaticMesh'/Engine/BasicShapes/Sphere.Sphere'"));
+    if (SphereMeshAsset.Succeeded())
+    {
+        FixtureSphere->SetStaticMesh(SphereMeshAsset.Object);
+    }
+
+    // Load and assign the low-poly lightbulb mesh
+    static ConstructorHelpers::FObjectFinder<UStaticMesh> LightbulbMeshAsset(TEXT("StaticMesh'/Game/.../low_poly_lamp.low_poly_lamp'"));
+    if (LightbulbMeshAsset.Succeeded())
+    {
+        LowPolyLightBulb->SetStaticMesh(LightbulbMeshAsset.Object);
+    }
 
     SwingConstraint = CreateDefaultSubobject<UPhysicsConstraintComponent>(TEXT("SwingConstraint"));
     SwingConstraint->SetupAttachment(FixtureSphere);
@@ -31,6 +44,12 @@ ASwingingLightbulb::ASwingingLightbulb()
 
     SlowRotation = CreateDefaultSubobject<URotatingMovementComponent>(TEXT("SlowRotation"));
     SlowRotation->RotationRate = FRotator(0.0f, 2.0f, 0.0f);
+
+    // Ensure visibility settings
+    FixtureSphere->SetVisibility(true);
+    LowPolyLightBulb->SetVisibility(true);
+    FixtureSphere->SetHiddenInGame(false);
+    LowPolyLightBulb->SetHiddenInGame(false);
 }
 
 void ASwingingLightbulb::BeginPlay()
