@@ -3,6 +3,8 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "SwingingLightbulb.generated.h"
+#include <GameFramework/RotatingMovementComponent.h>
+#include <PhysicsEngine/PhysicsConstraintComponent.h>
 
 UCLASS()
 class HORRORGAME_API ASwingingLightbulb : public AActor
