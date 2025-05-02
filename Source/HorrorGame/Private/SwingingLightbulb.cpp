@@ -28,8 +28,8 @@ ASwingingLightbulb::ASwingingLightbulb()
         FixtureSphere->SetStaticMesh(SphereMeshAsset.Object);
     }
 
-    // Load and assign the low-poly lightbulb mesh
-    static ConstructorHelpers::FObjectFinder<UStaticMesh> LightbulbMeshAsset(TEXT("StaticMesh'/Game/.../low_poly_lamp.low_poly_lamp'"));
+    // Load and assign the lightbulb mesh
+    static ConstructorHelpers::FObjectFinder<UStaticMesh> LightbulbMeshAsset(TEXT("StaticMesh'/Game/Props/low_poly_lamp.low_poly_lamp'"));
     if (LightbulbMeshAsset.Succeeded())
     {
         LowPolyLightBulb->SetStaticMesh(LightbulbMeshAsset.Object);
@@ -45,11 +45,13 @@ ASwingingLightbulb::ASwingingLightbulb()
     SlowRotation = CreateDefaultSubobject<URotatingMovementComponent>(TEXT("SlowRotation"));
     SlowRotation->RotationRate = FRotator(0.0f, 2.0f, 0.0f);
 
-    // Ensure visibility settings
-    FixtureSphere->SetVisibility(true);
+    FixtureSphere->SetWorldScale3D(FVector(0.1f, 0.1f, 0.1f));
+    FixtureSphere->SetRelativeLocation(FVector(0.0f, 0.0f, 50.0f));
+
     LowPolyLightBulb->SetVisibility(true);
-    FixtureSphere->SetHiddenInGame(false);
+    FixtureSphere->SetVisibility(true);
     LowPolyLightBulb->SetHiddenInGame(false);
+    FixtureSphere->SetHiddenInGame(false);
 }
 
 void ASwingingLightbulb::BeginPlay()
