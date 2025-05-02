@@ -15,20 +15,6 @@
 #include "DrawDebugHelpers.h"
 
 
-/*
-    add this wherever a puzzle is triggered/completed (pickup, note, switch, etc)
-
- * Example: when a puzzle is completed in this class
-    
-    UHorrorGameInstance* GI = Cast<UHorrorGameInstance>(UGameplayStatics::GetGameInstance(this));
-    if (GI && GI->GetLoopIndex() == 1)
-    {
-        GI->bLoop1Complete = true;
-        UE_LOG(LogTemp, Log, TEXT("Puzzle for Loop 1 completed!"));
-    }
-
-*/
-
 Afirst_Person_Character::Afirst_Person_Character()
 {
     PrimaryActorTick.bCanEverTick = true;
@@ -113,19 +99,32 @@ void Afirst_Person_Character::BeginPlay()
 {
     Super::BeginPlay();
 
+    // load game instance
+    UHorrorGameInstance* GameInstance = Cast<UHorrorGameInstance>(UGameplayStatics::GetGameInstance(this));
+    if (GameInstance)
+    {
+        int32 Loop = GameInstance->GetLoopIndex();
+        UE_LOG(LogTemp, Warning, TEXT("Current Loop: %d"), Loop);
+
+        // Only apply default battery if not loading from save
+        if (!UGameplayStatics::DoesSaveGameExist(TEXT("HorrorSaveSlot"), 0))
+        {
+            CurrentBattery = 2;
+        }
+    }
+
     CurrentCapsuleHeight = StandingCapsuleHalfHeight;
     GetCapsuleComponent()->SetCapsuleHalfHeight(CurrentCapsuleHeight);
     CurrentMoveSpeed = DefaultMaxWalkingSpeed;
     TargetMoveSpeed = DefaultMaxWalkingSpeed;
     GetCharacterMovement()->MaxWalkSpeed = CurrentMoveSpeed;
 
-    //Spawn an instance of the interaction system class
+    // spawn interaction system
     Interaction_System = GetWorld()->SpawnActor<Ainteraction_System>(Ainteraction_System::StaticClass(), FVector::ZeroVector, FRotator::ZeroRotator);
 
-    // apply user settings on game start
     InitializeGraphicsSettings();
 
-    //add crosshair widget to viewpoint
+    // add crosshair
     if (WB_CrosshairClass)
     {
         CrosshairWidget = CreateWidget<UUserWidget>(GetWorld()->GetFirstPlayerController(), WB_CrosshairClass);
@@ -133,34 +132,22 @@ void Afirst_Person_Character::BeginPlay()
         {
             CrosshairWidget->AddToViewport(1);
         }
-    }  
+    }
 
+    // add battery widget and hide initially
     if (BatteryWidgetClass)
     {
         BatteryWidget = CreateWidget<UUserWidget>(GetWorld()->GetFirstPlayerController(), BatteryWidgetClass);
         if (BatteryWidget)
         {
             BatteryWidget->AddToViewport();
-            BatteryWidget->SetVisibility(ESlateVisibility::Hidden); // hides it initially
+            BatteryWidget->SetVisibility(ESlateVisibility::Hidden);
         }
     }
 
-    // NEW LOOP INIT LOGIC
-    UHorrorGameInstance* GameInstance = Cast<UHorrorGameInstance>(UGameplayStatics::GetGameInstance(this));
-    if (GameInstance)
-    {
-        int32 Loop = GameInstance->GetLoopIndex();
-        UE_LOG(LogTemp, Warning, TEXT("Current Loop: %d"), Loop);
-
-        // TODO: Add visual/audio changes based on the loop number
-        // if (Loop == 2) { Make hallway darker, flicker lights, etc. }
-    }
-
-    // spawn the Blueprint version of the pause manager
+    // spawn PauseManager
     FActorSpawnParameters SpawnParams;
     SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-
-    // use LoadClass to find the blueprint class
     UClass* PauseManagerBP = LoadClass<APauseManager>(nullptr, TEXT("/Game/Blueprints/BP_PauseManager.BP_PauseManager_C"));
     PauseManager = PauseManagerBP ? GetWorld()->SpawnActor<APauseManager>(PauseManagerBP, FVector::ZeroVector, FRotator::ZeroRotator, SpawnParams) : nullptr;
 
@@ -176,7 +163,7 @@ void Afirst_Person_Character::BeginPlay()
         UE_LOG(LogTemp, Error, TEXT("Failed to load or assign Interaction Data Table!"));
     }
 
-    // Handle FadeFromMainMenu flow (used by Continue button)
+    // Fade from main menu logic
     APlayerController* PC = Cast<APlayerController>(GetController());
     if (PC && PC->PlayerCameraManager)
     {
@@ -184,10 +171,8 @@ void Afirst_Person_Character::BeginPlay()
 
         if (OptionValue.Equals("true", ESearchCase::IgnoreCase))
         {
-            // Start fully black
             PC->PlayerCameraManager->StartCameraFade(1.f, 1.f, 0.f, FLinearColor::Black, true, true);
 
-            // Delayed fade from black (safe with WeakPC)
             TWeakObjectPtr<APlayerController> WeakPC(PC);
             FTimerHandle FadeInHandle;
             GetWorld()->GetTimerManager().SetTimer(FadeInHandle, [WeakPC]()
@@ -198,19 +183,11 @@ void Afirst_Person_Character::BeginPlay()
                     }
                 }, 0.1f, false);
 
-            // Restore save data
             if (GameInstance)
             {
-                GameInstance->LoadGameProgress(); // restores player location, inventory, flags
+                GameInstance->LoadGameProgress();
             }
         }
-    }
-
-    // Debug: Print current loop
-    if (GameInstance)
-    {
-        int32 Loop = GameInstance->GetLoopIndex();
-        UE_LOG(LogTemp, Warning, TEXT("Current Loop: %d"), Loop);
     }
 }
 
@@ -350,10 +327,10 @@ void Afirst_Person_Character::InitializeGraphicsSettings()
     {
         UGameUserSettings* Settings = GEngine->GetGameUserSettings();
 
-        // Load previous saved settings (critical for standalone)
+        // this loads previous saved settings
         Settings->LoadSettings();
 
-        // Apply settings without restarting the engine
+        // this applies settings without restarting the engine
         Settings->ApplySettings(false);
     }
 }

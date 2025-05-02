@@ -111,6 +111,7 @@ bool UHorrorGameInstance::LoadGameProgress()
             Player->CurrentItemTag = LoadedGame->SavedCurrentItemTag;
             Player->CurrentItem = LoadedGame->SavedCurrentItem;
             Player->StoredItemScale = LoadedGame->SavedItemScale;
+            Player->UpdateBatteryUI();
 
             UE_LOG(LogTemp, Warning, TEXT("Player restored to location: %s"), *LoadedGame->PlayerLocation.ToString());
         }

@@ -151,6 +151,9 @@ void UCharacterAudioComponent::LoadInteractionSounds()
     FlashlightOnSound = LoadCue(TEXT("/Game/MusicSoundFX/FlashlightAudio/FlashlightOnClickAudio_Cue.FlashlightOnClickAudio_Cue"));
     FlashlightOffSound = LoadCue(TEXT("/Game/MusicSoundFX/FlashlightAudio/FlashlightOffClickAudio_Cue.FlashlightOffClickAudio_Cue"));
 
+    // TV Glitch Sound
+    InteractionMap.Add("TVGlitch", LoadCue(TEXT("/Game/MusicSoundFX/TV-Radio-SFX/TV-Static-Glitch_Cue.TV-Static-Glitch_Cue")));
+
     // Radio Button Sound
     /*
     * Need to add sound files/cue into new content folder; This variable points to nothing right now. -cliff
