@@ -1,6 +1,10 @@
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 #include "HorrorGame.h"
+=======
+#include "HorrorGame/HorrorGame.h"
+>>>>>>> Stashed changes
 =======
 #include "HorrorGame/HorrorGame.h"
 >>>>>>> Stashed changes
