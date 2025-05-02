@@ -1,5 +1,5 @@
-#include "HorrorGame/HorrorGame.h"
 #include "SwingingLightbulb.h"
+#include "HorrorGame/HorrorGame.h"
 #include "Components/SceneComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "PhysicsEngine/PhysicsConstraintComponent.h"
