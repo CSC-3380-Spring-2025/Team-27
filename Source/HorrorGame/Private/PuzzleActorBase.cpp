@@ -26,7 +26,7 @@ void APuzzleActorBase::BeginPlay()
     }
 
     // restore unlock state if this is the drawer
-    if (PuzzleTag == "Room2Drawer" && GI->HasInteractedWith("Room2DrawerUnlocked"))
+    if (PuzzleTag == "Room3Drawer" && GI->HasInteractedWith("Room3DrawerUnlocked"))
     {
         bIsUnlocked = true;
         bUnlockedViaPuzzle = true;
@@ -60,15 +60,15 @@ void APuzzleActorBase::BeginPlay()
 
 bool APuzzleActorBase::CanInteract() const
 {
-    // Special handling for Room2Drawer
-    if (PuzzleTag == "Room2Drawer")
+    // Special handling for Room3Drawer
+    if (PuzzleTag == "Room3Drawer")
     {
         return bIsUnlocked; // Return true after the keypad unlocks it
     }
 
     // Original logic for other items
     if (PuzzleTag == "PickupFlashlight" || PuzzleTag == "PickupBattery" ||
-        PuzzleTag == "Room2Key" || PuzzleTag == "Room2Note")
+        PuzzleTag == "Room3Key" || PuzzleTag == "Room2Note")
         return true;
 
     return bIsUnlocked && bUnlockedViaPuzzle;

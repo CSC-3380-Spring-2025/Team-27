@@ -148,7 +148,7 @@ void Afirst_Person_Character::BeginPlay()
     // spawn PauseManager
     FActorSpawnParameters SpawnParams;
     SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-    UClass* PauseManagerBP = LoadClass<APauseManager>(nullptr, TEXT("/Game/Blueprints/BP_PauseManager.BP_PauseManager_C"));
+    UClass* PauseManagerBP = LoadClass<APauseManager>(nullptr, TEXT("/Game/UserInterface/BP_PauseManager.BP_PauseManager_C"));
     PauseManager = PauseManagerBP ? GetWorld()->SpawnActor<APauseManager>(PauseManagerBP, FVector::ZeroVector, FRotator::ZeroRotator, SpawnParams) : nullptr;
 
     // load interaction data table

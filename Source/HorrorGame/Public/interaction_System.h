@@ -67,7 +67,7 @@ private:
 	void TeleportUsingDataTable(Afirst_Person_Character* Character, AActor* HitActor);
 
 	// interaction widget 'E' prompt
-	void WidgetPrompt(Afirst_Person_Character* Character, AActor* HitActor, bool Visibility);
+	void WidgetPrompt(Afirst_Person_Character* Character, AActor* HitActor, bool Visibility, const FHitResult& Hit);
 
 	// maps the tag function
 	TMap<FName, void (Ainteraction_System::*)(Afirst_Person_Character*, AActor*)> Interaction_Functions;

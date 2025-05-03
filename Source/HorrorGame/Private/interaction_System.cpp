@@ -26,6 +26,19 @@ void Ainteraction_System::BeginPlay()
 {
     Super::BeginPlay();
     InitInteractionFunctionMap();
+
+    // this hides all widget components until player looks at an actor with one
+    TArray<AActor*> AllActors;
+    UGameplayStatics::GetAllActorsOfClass(GetWorld(), AActor::StaticClass(), AllActors);
+
+    for (AActor* Actor : AllActors)
+    {
+        UWidgetComponent* Widget = Actor->FindComponentByClass<UWidgetComponent>();
+        if (Widget)
+        {
+            Widget->SetVisibility(false);
+        }
+    }
 }
 
 void Ainteraction_System::Tick(float DeltaTime)
@@ -40,12 +53,12 @@ void Ainteraction_System::Tick(float DeltaTime)
 
     if (LastHitActor && LastHitActor != Current)
     {
-        WidgetPrompt(Character, LastHitActor, false);
+        WidgetPrompt(Character, LastHitActor, false, Hit);
     }
 
     if (Current)
     {
-        WidgetPrompt(Character, Current, true);
+        WidgetPrompt(Character, Current, true, Hit);
     }
 
     LastHitActor = Current;
@@ -103,7 +116,14 @@ void Ainteraction_System::Perform_Interaction(Afirst_Person_Character* Character
 {
     if (!HitActor) return;
 
-    // FIRST go through actor tags
+    // this will prioritize items with this tag (helps with collision and items in drawers)
+    if (HitActor->ActorHasTag("Pickup_Object"))
+    {
+        Pickup_Object(Character, HitActor);
+        return;
+    }
+
+    // go through actor tags
     for (const FName& Tag : HitActor->Tags)
     {
         if (Tag == "LockedDoor")
@@ -119,6 +139,7 @@ void Ainteraction_System::Perform_Interaction(Afirst_Person_Character* Character
         }
     }
 
+    // this checks the drawer tag through 'component tags'
     UPrimitiveComponent* HitComponent = Hit.GetComponent();
     if (HitComponent)
     {
@@ -168,21 +189,28 @@ void Ainteraction_System::Perform_Interaction(Afirst_Person_Character* Character
     }
 }
 
-void Ainteraction_System::WidgetPrompt(Afirst_Person_Character* Character, AActor* HitActor, bool Visibility)
+void Ainteraction_System::WidgetPrompt(Afirst_Person_Character* Character, AActor* HitActor, bool Visibility, const FHitResult& Hit)
 {
-    if (!HitActor) return;
+    if (!Character || !HitActor) return;
 
-    UWidgetComponent* Widget = HitActor->FindComponentByClass<UWidgetComponent>();
-    if (Widget)
+    // Look for widget component directly on the hit component (useful for child actors)
+    UWidgetComponent* Widget = Cast<UWidgetComponent>(Hit.Component.Get());
+
+    // If not found, fallback to actor-level widget component
+    if (!Widget)
     {
-        FVector WidgetLocation = Widget->GetComponentLocation();
-        FVector CameraLocation = Character->cam->GetComponentLocation();
-
-        FRotator WidgetRotation = UKismetMathLibrary::FindLookAtRotation(WidgetLocation, CameraLocation);
-        Widget->SetWorldRotation(WidgetRotation);
-
-        Widget->SetVisibility(Visibility);
+        Widget = HitActor->FindComponentByClass<UWidgetComponent>();
     }
+
+    if (!Widget) return;
+
+    // Update rotation to face camera
+    FVector WidgetLocation = Widget->GetComponentLocation();
+    FVector CameraLocation = Character->cam->GetComponentLocation();
+    FRotator WidgetRotation = UKismetMathLibrary::FindLookAtRotation(WidgetLocation, CameraLocation);
+
+    Widget->SetWorldRotation(WidgetRotation);
+    Widget->SetVisibility(Visibility);
 }
 
 
@@ -198,7 +226,7 @@ void Ainteraction_System::Pickup_Object(Afirst_Person_Character* Character, AAct
     Character->InventoryTags.Add(Tag);
 
     // Only auto-equip items that should be in the player's hand
-    if (Tag == "PickupFlashlight" || Tag == "Room2Key" || Tag == "Room2Note" || Tag == "Loop1Key")
+    if (Tag == "PickupFlashlight" || Tag == "Room3Key" || Tag == "Room2Note" || Tag == "Loop1Key")
     {
         Character->CurrentItem = Item;
         Character->CurrentItemTag = Tag;
@@ -338,15 +366,14 @@ void Ainteraction_System::CompleteLoopDoor(Afirst_Person_Character* Character, A
         bCanExit = true;
         break;
     case 2:
-        if (GI->InventoryTags.Contains("Room2Note") &&
-            GI->InventoryTags.Contains("Room2Key"))
+        if (GI->InventoryTags.Contains("Room2Note"))
         {
             GI->bLoop2Complete = true;
             bCanExit = true;
         }
         else
         {
-            UE_LOG(LogTemp, Warning, TEXT("You must have Room2Note and Room2Key to unlock the door."));
+            UE_LOG(LogTemp, Warning, TEXT("You must have Room2Note to unlock the door."));
             if (Character->AudioComponent)
             {
                 Character->AudioComponent->PlayInteractionSound("LockedDoor", HitActor->GetActorLocation());
@@ -354,7 +381,19 @@ void Ainteraction_System::CompleteLoopDoor(Afirst_Person_Character* Character, A
             return;
         }
         break;
-    case 3: bCanExit = GI->bLoop3Complete; break;
+    case 3:
+        if (Character->CurrentItemTag != "Room3Key")
+        {
+            UE_LOG(LogTemp, Warning, TEXT("You must be holding the key to unlock the door."));
+            if (Character->AudioComponent)
+            {
+                Character->AudioComponent->PlayInteractionSound("LockedDoor", HitActor->GetActorLocation());
+            }
+            return;
+        }
+        GI->bLoop3Complete = true;
+        bCanExit = true;
+        break;
     case 4: bCanExit = GI->bLoop4Complete; break;
     default:
         UE_LOG(LogTemp, Warning, TEXT("Unhandled loop index: %d"), CurrentLoop);
@@ -514,7 +553,7 @@ void Ainteraction_System::UnlockTopDrawer(Afirst_Person_Character* Character, AA
 
     if (UHorrorGameInstance* GI = Cast<UHorrorGameInstance>(UGameplayStatics::GetGameInstance(Character)))
     {
-        GI->MarkTagInteracted("Room2DrawerUnlocked");
+        GI->MarkTagInteracted("Room3DrawerUnlocked");
     }
 
     UE_LOG(LogTemp, Warning, TEXT("Drawer unlocked via keypad: %s"), *Drawer->GetName());
