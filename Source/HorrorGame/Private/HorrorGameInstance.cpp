@@ -135,6 +135,7 @@ void UHorrorGameInstance::StartNewGame()
 
     // clear interacted tags so puzzles reset
     InteractedTags.Empty();
+    InventoryTags.Empty();
 
     // delete save to ensure clean start
     UGameplayStatics::DeleteGameInSlot(TEXT("HorrorSaveSlot"), 0);
