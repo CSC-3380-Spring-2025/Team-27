@@ -186,6 +186,7 @@ void Afirst_Person_Character::BeginPlay()
             if (GameInstance)
             {
                 GameInstance->LoadGameProgress();
+                GameInstance->bSaveGameLoaded = true;
             }
         }
     }
@@ -297,7 +298,7 @@ void Afirst_Person_Character::Tick(float DeltaTime)
     {
         BatteryDrainTimer += DeltaTime;
 
-        // Drain every 5 seconds (adjust interval here)
+        // this is the time it takes to drain battery (every 8 seconds)
         if (BatteryDrainTimer >= 8.0f)
         {
             BatteryDrainTimer = 0.f;
@@ -306,7 +307,7 @@ void Afirst_Person_Character::Tick(float DeltaTime)
             {
                 CurrentBattery--;
 
-                // Turn off flashlight if empty
+                // this turns off flashlight if empty
                 if (CurrentBattery <= 0)
                 {
                     CurrentBattery = 0;
@@ -392,7 +393,8 @@ void Afirst_Person_Character::Vertic_Move(float value)
 
 void Afirst_Person_Character::ToggleFlashlight()
 {
-    if (CurrentItemTag == "PickupFlashlight")
+    FString TagStr = CurrentItemTag.ToString();
+    if (TagStr.EndsWith("PickupFlashlight"))
     {
         bool bWasFlashlightOn = bFlashlightOn;
 
@@ -432,13 +434,13 @@ void Afirst_Person_Character::AutoTurnOffFlashlight()
 { 
     if (CurrentItemTag != "PickupFlashlight")
     {
-        // Hide battery UI when flashlight is no longer equipped
+        // hide battery UI when flashlight is no longer equipped
         if (BatteryWidget)
         {
             BatteryWidget->SetVisibility(ESlateVisibility::Hidden);
         }
 
-        // Also turn flashlight off
+        // also turn flashlight off
         bFlashlightOn = false;
         Flashlight->SetVisibility(false);
         UE_LOG(LogTemp, Log, TEXT("Flashlight forced OFF because it's not being held"));
@@ -487,21 +489,81 @@ void Afirst_Person_Character::UpdateBatteryUI()
 
 void Afirst_Person_Character::DropCurrentItem()
 {
-    if (!CurrentItem) return;
+    // remove any tags so the new actor won't self-destroy
+    if (!CurrentItem)
+        return;
 
-    FVector SpawnLocation = GetActorLocation() + GetActorForwardVector() * 150.f;
-    FRotator SpawnRotation = GetActorRotation();
+    // this find the base puzzle tag the actor has
+    FName PlainTag = NAME_None;
+    if (UClass* ItemClass = CurrentItem)
+    {
+        if (APuzzleActorBase* CDO = Cast<APuzzleActorBase>(ItemClass->GetDefaultObject()))
+        {
+            PlainTag = CDO->PuzzleTag;
+        }
+    }
+
+    // this removes the actors puzzle tag and base tag
+    if (PlainTag != NAME_None)
+    {
+        if (UHorrorGameInstance* GI = Cast<UHorrorGameInstance>(GetGameInstance()))
+        {
+            // example: "Loop1_PickupBattery"
+            FName LoopAwareTag = FName(*FString::Printf(
+                TEXT("Loop%d_%s"),
+                GI->GetLoopIndex(),
+                *PlainTag.ToString()
+            ));
+
+            GI->InventoryTags.Remove(LoopAwareTag);
+            GI->InventoryTags.Remove(PlainTag);
+            GI->InteractedTags.Remove(PlainTag);
+        }
+    }
 
     UWorld* World = GetWorld();
-    if (World)
-    {
-        FActorSpawnParameters SpawnParams;
-        AActor* SpawnedActor = World->SpawnActor<AActor>(CurrentItem, SpawnLocation, SpawnRotation, SpawnParams);
-        SpawnedActor->SetActorScale3D(StoredItemScale);
+    if (!World)
+        return;
 
-        RemoveItemFromInventory();
-        AutoTurnOffFlashlight();
+    // this spawns the item exactly at the camera (i.e. “your hands”)
+    FVector SpawnLocation = cam->GetComponentLocation();
+    FRotator SpawnRotation = cam->GetComponentRotation();
+
+    FActorSpawnParameters Params;
+    // ignore blocking collisions so it can always appear
+    Params.SpawnCollisionHandlingOverride =
+        ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
+    AActor* Spawned = World->SpawnActor<AActor>(
+        CurrentItem, SpawnLocation, SpawnRotation, Params
+    );
+
+    if (!Spawned)
+    {
+        UE_LOG(LogTemp, Error, TEXT("Failed to spawn actor from class: %s"),
+            *CurrentItem->GetName());
+        return;
     }
+
+        Spawned->SetActorHiddenInGame(false);
+        Spawned->SetActorEnableCollision(true);
+
+    // enable physics so it falls naturally
+    if (UPrimitiveComponent* Prim =
+        Cast<UPrimitiveComponent>(
+            Spawned->GetComponentByClass(UPrimitiveComponent::StaticClass())
+        ))
+    {
+        Prim->SetSimulatePhysics(true);
+        Prim->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+        Prim->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);
+
+        // optional - this gives the item a small forward push after dropping
+        FVector Impulse = cam->GetForwardVector() * 200.0f;
+        Prim->AddImpulse(Impulse, NAME_None, true);
+    }
+    RemoveItemFromInventory();
+    AutoTurnOffFlashlight();
 }
 
 void Afirst_Person_Character::ScrollInventory(float AxisValue)
@@ -509,7 +571,6 @@ void Afirst_Person_Character::ScrollInventory(float AxisValue)
     if (Inventory.Num() == 0 || FMath::IsNearlyZero(AxisValue)) return;
 
     int32 TotalSlots = Inventory.Num() + 1;
-
     CurrentIndex = (CurrentIndex + (AxisValue > 0 ? 1 : -1) + TotalSlots) % TotalSlots;
 
     if (CurrentIndex == Inventory.Num())
@@ -517,22 +578,27 @@ void Afirst_Person_Character::ScrollInventory(float AxisValue)
         CurrentItem = nullptr;
         CurrentItemTag = NAME_None;
         UE_LOG(LogTemp, Log, TEXT("Held item: None"));
+        AutoTurnOffFlashlight();
     }
-    else 
+    else
     {
-        CurrentItem = (Inventory.IsValidIndex(CurrentIndex)) ? Inventory[CurrentIndex] : nullptr; 
-        CurrentItemTag = InventoryTags.IsValidIndex(CurrentIndex) ? InventoryTags[CurrentIndex] : NAME_None;
-        if (CurrentItem)
+        CurrentItem = Inventory[CurrentIndex];
+        CurrentItemTag = InventoryTags[CurrentIndex];
+        UE_LOG(LogTemp, Log, TEXT("Held item: %s"), *CurrentItemTag.ToString()); //should tell you current held item in UE output log
+
+        FString TagStr = CurrentItemTag.ToString();
+        if (TagStr.EndsWith("PickupFlashlight"))
         {
-            UE_LOG(LogTemp, Log, TEXT("Held item: %s"), *CurrentItem->GetName());
+            // re-display flashlight and its UI
+            Flashlight->SetVisibility(bFlashlightOn);
+            if (BatteryWidget)
+                BatteryWidget->SetVisibility(bFlashlightOn ? ESlateVisibility::Visible : ESlateVisibility::Hidden);
         }
         else
         {
-            UE_LOG(LogTemp, Warning, TEXT("Held item is null (unexpected)"));
+            AutoTurnOffFlashlight();
         }
     }
-    
-    AutoTurnOffFlashlight();
 }
 
 void Afirst_Person_Character::TogglePause()

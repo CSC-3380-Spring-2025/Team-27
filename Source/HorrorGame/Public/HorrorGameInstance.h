@@ -105,6 +105,5 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Loop")
 	void StartNewGame();
 
-
-	
+	bool bSaveGameLoaded = false;
 };

@@ -218,17 +218,33 @@ void Ainteraction_System::Pickup_Object(Afirst_Person_Character* Character, AAct
 {
     if (!Character || !HitActor) return;
 
-    TSubclassOf<AActor> Item = HitActor->GetClass();
-    FName Tag = HitActor->Tags.IsValidIndex(0) ? HitActor->Tags[0] : NAME_None;
-    Character->StoredItemScale = HitActor->GetActorScale3D();
+    // determine the tag of actor and if it has a separate tag for a different use
+    FName Tag = NAME_None;
+    if (APuzzleActorBase* Puzzle = Cast<APuzzleActorBase>(HitActor))
+    {
+        // use the PuzzleTag property if this actor is a PuzzleActorBase
+        Tag = Puzzle->PuzzleTag;
+    }
+    if (Tag == NAME_None)
+    {
+        // otherwise, look through actor tags for anything other than "Pickup_Object"
+        for (const FName& T : HitActor->Tags)
+        {
+            if (T != "Pickup_Object")
+            {
+                Tag = T;
+                break;
+            }
+        }
+    }
 
-    Character->Inventory.Add(Item);
+    Character->Inventory.Add(HitActor->GetClass());
     Character->InventoryTags.Add(Tag);
 
     // Only auto-equip items that should be in the player's hand
     if (Tag == "PickupFlashlight" || Tag == "Room3Key" || Tag == "Room2Note" || Tag == "Loop1Key")
     {
-        Character->CurrentItem = Item;
+        Character->CurrentItem = HitActor->GetClass();
         Character->CurrentItemTag = Tag;
         Character->CurrentIndex = Character->Inventory.Num() - 1;
         UE_LOG(LogTemp, Log, TEXT("Equipped item: %s"), *Tag.ToString());

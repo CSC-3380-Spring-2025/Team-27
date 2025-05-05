@@ -5,7 +5,7 @@
 
 APuzzleActorBase::APuzzleActorBase()
 {
-    PrimaryActorTick.bCanEverTick = false;
+    PrimaryActorTick.bCanEverTick = true;
 }
 
 void APuzzleActorBase::BeginPlay()
@@ -17,7 +17,8 @@ void APuzzleActorBase::BeginPlay()
 
     const int32 CurrentLoop = GI->GetLoopIndex();
 
-    if (CurrentLoop != PuzzleLoopIndex)
+    // this hides non-matching loop actors (but still allow them to be destroyed if needed)
+    if (PuzzleLoopIndex != 0 && PuzzleLoopIndex != CurrentLoop)
     {
         SetActorHiddenInGame(true);
         SetActorEnableCollision(false);
@@ -25,31 +26,32 @@ void APuzzleActorBase::BeginPlay()
         return;
     }
 
-    // restore unlock state if this is the drawer
+    // this prevents duplicates immediately on load
+    if (PuzzleTag == "PickupFlashlight" || PuzzleTag == "PickupBattery")
+    {
+        FName LoopAwareTag = FName(*FString::Printf(TEXT("Loop%d_%s"), CurrentLoop, *PuzzleTag.ToString()));
+
+        if (GI->InventoryTags.Contains(LoopAwareTag))
+        {
+            UE_LOG(LogTemp, Warning, TEXT("Destroying %s on BeginPlay due to saved tag: %s"),
+                *GetName(), *LoopAwareTag.ToString());
+            Destroy();
+            return;
+        }
+    }
+    else if (GI->InventoryTags.Contains(PuzzleTag) || GI->HasInteractedWith(PuzzleTag))
+    {
+        UE_LOG(LogTemp, Warning, TEXT("Destroying %s on BeginPlay due to interacted tag: %s"),
+            *GetName(), *PuzzleTag.ToString());
+        Destroy();
+        return;
+    }
+
+    // this restores special states
     if (PuzzleTag == "Room3Drawer" && GI->HasInteractedWith("Room3DrawerUnlocked"))
     {
         bIsUnlocked = true;
         bUnlockedViaPuzzle = true;
-    }
-
-    if (PuzzleTag == "PickupFlashlight" || PuzzleTag == "PickupBattery")
-    {
-        FName LoopAwareTag = FName(*FString::Printf(TEXT("Loop%d_%s"), CurrentLoop, *PuzzleTag.ToString()));
-        if (GI->InventoryTags.Contains(LoopAwareTag))
-        {
-            UE_LOG(LogTemp, Warning, TEXT("Flashlight or battery already picked up for this loop: %s"), *LoopAwareTag.ToString());
-            Destroy();
-            return;
-        }
-    }
-    else
-    {
-        // for regular puzzles — remove if previously interacted or picked up
-        if (GI->InventoryTags.Contains(PuzzleTag) || GI->HasInteractedWith(PuzzleTag))
-        {
-            Destroy();
-            return;
-        }
     }
 
     if (PuzzleTag == NAME_None)

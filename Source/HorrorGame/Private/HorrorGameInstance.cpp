@@ -35,7 +35,7 @@ void UHorrorGameInstance::SaveGameProgress()
 
     // Save inventory
     SaveGameInstance->SavedInventory = Character->Inventory;
-    SaveGameInstance->SavedInventoryTags = Character->InventoryTags;
+    SaveGameInstance->SavedInventoryTags = InventoryTags.Array();
     SaveGameInstance->SavedCurrentItem = Character->CurrentItem;
     SaveGameInstance->SavedCurrentItemTag = Character->CurrentItemTag;
     SaveGameInstance->SavedCurrentIndex = Character->CurrentIndex;
@@ -86,6 +86,18 @@ bool UHorrorGameInstance::LoadGameProgress()
     bLoop5Complete = LoadedGame->bLoop5Complete;
     bLoop6Complete = LoadedGame->bLoop6Complete;
     InteractedTags = TSet<FName>(LoadedGame->InteractedTags);
+
+    // restore puzzle and inventory state/progress
+    InteractedTags.Empty();
+    for (const FName& Tag : LoadedGame->InteractedTags)
+    {
+        InteractedTags.Add(Tag);
+    }
+    InventoryTags.Empty();
+    for (const FName& Tag : LoadedGame->SavedInventoryTags)
+    {
+        InventoryTags.Add(Tag);
+    }
 
     UE_LOG(LogTemp, Warning, TEXT("Game Loaded: Loop = %d | L1 = %s | L2 = %s | L3 = %s"),
         CurrentLoopIndex,
@@ -151,8 +163,6 @@ void UHorrorGameInstance::StartNewGame()
         }
     }
 
+    bSaveGameLoaded = true;
     UE_LOG(LogTemp, Warning, TEXT("New Game started. Loop index, flags, and inventory reset."));
 }
-
-
-

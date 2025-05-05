@@ -41,4 +41,8 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lock")
     bool bIsUnlocked = true;
 
+private:
+
+    bool bCheckedSaveDestroy = false;
+
 };
