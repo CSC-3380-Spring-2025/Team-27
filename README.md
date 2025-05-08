@@ -36,11 +36,12 @@
 ## 🔗 Important Links
 - **Kanban Board:** [Link](https://github.com/orgs/CSC-3380-Spring-2025/projects/7/views/1)
 - **Designs:** [Link](https://drive.google.com/drive/folders/1XS3uhJ5pH688Lu_2NxWyl6Dbi5qM_QVZ?usp=sharing)
-- **Code Standards:** [Link](https://github.com/user-attachments/files/20096032/Git.Master.-.Code.Standards.pdf)
+- **Code Standards:** [Link](https://drive.google.com/file/d/16wx_RB980KPqmxKkaCUhvuwlhS4Pcvp3/view?usp=sharing)
 
 ---
 
 ## 🛠️ How to Download and Run the Game
+
 
 ### 🔧 Dependencies
 1. Unreal Engine 5 (required to open and run project)
@@ -68,6 +69,7 @@ git pull origin main
 ```
 
 #### 3. Copy the `Content` Folder
+*Use the `Content` folder shared to you via email or Google Drive*
 - Ensure the `Content` folder is placed directly in the root of the project directory (`Team-27/`).
 - The folder **must** be named `Content` and not placed inside another subfolder.
 
