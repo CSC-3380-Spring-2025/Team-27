@@ -48,6 +48,11 @@ protected:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Transition")
 	float OpenDoorDelayTime = 0.6f;
+	
+	UPROPERTY()
+	UUserWidget* NoteWidgetActive = nullptr;
+	
+	bool bViewNote = false;
 
 
 private:
@@ -82,6 +87,12 @@ private:
 	// interactive drawers
 	UFUNCTION(BlueprintCallable)
 	void UnlockTopDrawer(Afirst_Person_Character* Character, AActor* HitActor);
+
+	// interactive note
+	void View_Note(Afirst_Person_Character* Character, AActor* HitActor);
+
+	// remove note from view
+	void Close_Note(Afirst_Person_Character* Character);
 
 	AActor* LineTraceFromCamera(Afirst_Person_Character* Character, FHitResult& Hit);
 	AActor* LastHitActor = nullptr;

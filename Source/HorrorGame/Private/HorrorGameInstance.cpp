@@ -39,7 +39,6 @@ void UHorrorGameInstance::SaveGameProgress()
     SaveGameInstance->SavedCurrentItem = Character->CurrentItem;
     SaveGameInstance->SavedCurrentItemTag = Character->CurrentItemTag;
     SaveGameInstance->SavedCurrentIndex = Character->CurrentIndex;
-    SaveGameInstance->SavedItemScale = Character->StoredItemScale;
 
     // Save puzzle flags
     SaveGameInstance->bLoop1Complete = bLoop1Complete;
@@ -110,7 +109,6 @@ bool UHorrorGameInstance::LoadGameProgress()
             Player->CurrentIndex = LoadedGame->SavedCurrentIndex;
             Player->CurrentItemTag = LoadedGame->SavedCurrentItemTag;
             Player->CurrentItem = LoadedGame->SavedCurrentItem;
-            Player->StoredItemScale = LoadedGame->SavedItemScale;
             Player->UpdateBatteryUI();
 
             UE_LOG(LogTemp, Warning, TEXT("Player restored to location: %s"), *LoadedGame->PlayerLocation.ToString());

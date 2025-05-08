@@ -88,6 +88,7 @@ void Ainteraction_System::InitInteractionFunctionMap()
     Interaction_Functions.Add(FName(TEXT("ExitDoor")), &Ainteraction_System::CompleteLoopDoor);
     Interaction_Functions.Add("TeleportToMainRoom", &Ainteraction_System::TeleportUsingDataTable); // uses the DataTable
     Interaction_Functions.Add(FName(TEXT("Pickup_Object")), &Ainteraction_System::Pickup_Object);
+    Interaction_Functions.Add(FName(TEXT("NoteCode")), &Ainteraction_System::View_Note);
     Interaction_Functions.Add(FName(TEXT("RestoreFlashlightBattery")), &Ainteraction_System::RestoreFlashlightBattery);
     Interaction_Functions.Add("GlitchTV", &Ainteraction_System::GlitchTV);
     Interaction_Functions.Add("UseKeypad", &Ainteraction_System::UseKeypad);
@@ -97,6 +98,12 @@ void Ainteraction_System::InitInteractionFunctionMap()
 void Ainteraction_System::Interact(Afirst_Person_Character* Character)
 {
     if (!Character || !Character->cam) return;
+
+    if (bViewNote)
+    {
+        Close_Note(Character);
+        return;
+    }
 
     FHitResult Hit;
     AActor* HitActor = LineTraceFromCamera(Character, Hit);
@@ -195,11 +202,14 @@ void Ainteraction_System::WidgetPrompt(Afirst_Person_Character* Character, AActo
 
     // Look for widget component directly on the hit component (useful for child actors)
     UWidgetComponent* Widget = Cast<UWidgetComponent>(Hit.Component.Get());
+    if (Widget && Widget->GetName() == TEXT("NoteDisplayWidget")) return;
+
 
     // If not found, fallback to actor-level widget component
     if (!Widget)
     {
         Widget = HitActor->FindComponentByClass<UWidgetComponent>();
+        if (Widget && Widget->GetName() == TEXT("NoteDisplayWidget")) return;
     }
 
     if (!Widget) return;
@@ -220,7 +230,6 @@ void Ainteraction_System::Pickup_Object(Afirst_Person_Character* Character, AAct
 
     TSubclassOf<AActor> Item = HitActor->GetClass();
     FName Tag = HitActor->Tags.IsValidIndex(0) ? HitActor->Tags[0] : NAME_None;
-    Character->StoredItemScale = HitActor->GetActorScale3D();
 
     Character->Inventory.Add(Item);
     Character->InventoryTags.Add(Tag);
@@ -578,4 +587,50 @@ void Ainteraction_System::GlitchTV(Afirst_Person_Character* Character, AActor* H
 
     UE_LOG(LogTemp, Warning, TEXT("TV interacted with. Glitch sound played."));
 }
+
+// Interaction with note to pop up to screen
+void Ainteraction_System::View_Note(Afirst_Person_Character* Character, AActor* HitActor)
+{
+    UE_LOG(LogTemp, Warning, TEXT("View_Note called on actor: %s"), *HitActor->GetName());
+
+    if (UWidgetComponent* WidgetComp = Cast<UWidgetComponent>(HitActor->GetDefaultSubobjectByName(TEXT("NoteDisplayWidget"))))
+    {
+        UUserWidget* NoteWidget = WidgetComp->GetWidget();
+
+        if (NoteWidget && !bViewNote)
+        {
+            NoteWidget->AddToViewport();
+            NoteWidgetActive = NoteWidget;
+            bViewNote = true;
+        }
+
+        APlayerController* PC = Cast<APlayerController>(Character->GetController());
+        if (PC)
+        {
+            PC->SetIgnoreMoveInput(true);
+            PC->SetIgnoreLookInput(true);
+        }
+    }
+}
+
+// Remove note widget from screen when pressing E again
+void Ainteraction_System::Close_Note(Afirst_Person_Character* Character)
+{
+
+    UE_LOG(LogTemp, Warning, TEXT("Close_Note called. Hiding note widget"));
+
+    if (!Character) return;
+
+    NoteWidgetActive->RemoveFromParent();
+    NoteWidgetActive = nullptr;
+    bViewNote = false;
+
+    APlayerController* PC = Cast<APlayerController>(Character->GetController());
+    if (PC)
+    {
+        PC->SetIgnoreMoveInput(false);
+        PC->SetIgnoreLookInput(false);
+    }
+}
+
 

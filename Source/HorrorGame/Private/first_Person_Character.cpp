@@ -367,7 +367,6 @@ void Afirst_Person_Character::SetupPlayerInputComponent(UInputComponent* PlayerI
 
     // FLASHLIGHT INPUT (f)
     PlayerInputComponent->BindAction("ToggleFlashlight", IE_Pressed, this, &Afirst_Person_Character::ToggleFlashlight);
-    PlayerInputComponent->BindAction("DropItem", IE_Pressed, this, &Afirst_Person_Character::DropCurrentItem);
     PlayerInputComponent->BindAxis("ScrollInventory", this, &Afirst_Person_Character::ScrollInventory);
 
     // PAUSE MENU INPUT (Escape)
@@ -445,26 +444,6 @@ void Afirst_Person_Character::AutoTurnOffFlashlight()
     }
 }
 
-void Afirst_Person_Character::RemoveItemFromInventory()
-{
-    Inventory.RemoveAt(CurrentIndex);
-    InventoryTags.RemoveAt(CurrentIndex);
-
-    if (Inventory.Num() > 0)
-    {
-        CurrentIndex = CurrentIndex % Inventory.Num();
-        CurrentItem = Inventory[CurrentIndex];
-        CurrentItemTag = InventoryTags[CurrentIndex];
-    }
-    else
-    {
-        CurrentIndex = 0;
-        CurrentItem = nullptr;
-        CurrentItemTag = NAME_None;
-    }
-}
-
-
 void Afirst_Person_Character::UpdateBatteryUI()
 {
     if (BatteryWidget)
@@ -482,25 +461,6 @@ void Afirst_Person_Character::UpdateBatteryUI()
 
             BatteryWidget->ProcessEvent(UpdateFunc, &Params);
         }
-    }
-}
-
-void Afirst_Person_Character::DropCurrentItem()
-{
-    if (!CurrentItem) return;
-
-    FVector SpawnLocation = GetActorLocation() + GetActorForwardVector() * 150.f;
-    FRotator SpawnRotation = GetActorRotation();
-
-    UWorld* World = GetWorld();
-    if (World)
-    {
-        FActorSpawnParameters SpawnParams;
-        AActor* SpawnedActor = World->SpawnActor<AActor>(CurrentItem, SpawnLocation, SpawnRotation, SpawnParams);
-        SpawnedActor->SetActorScale3D(StoredItemScale);
-
-        RemoveItemFromInventory();
-        AutoTurnOffFlashlight();
     }
 }
 
