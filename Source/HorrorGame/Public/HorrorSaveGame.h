@@ -53,6 +53,8 @@ public:
     UPROPERTY()
     FVector SavedItemScale;
 
+    // LOOP SAVE
+
     UPROPERTY()
     bool bLoop1Complete;
 

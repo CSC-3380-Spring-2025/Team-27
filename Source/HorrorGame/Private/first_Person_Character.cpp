@@ -664,22 +664,21 @@ void Afirst_Person_Character::StartDoorTransition(const FVector& TargetLocation)
     APlayerController* PC = Cast<APlayerController>(GetController());
     if (!PC || !PC->PlayerCameraManager) return;
 
-    // Use configurable property
     const float FadeDuration = TeleportFadeDuration;
     const float TotalTransitionTime = FadeDuration * 2.0f;
 
-    // Fade to black
+    // fade to black
     PC->PlayerCameraManager->StartCameraFade(0.f, 1.f, FadeDuration, FLinearColor::Black, false, true);
 
-    // Freeze input
+    // freeze input
     PC->SetIgnoreMoveInput(true);
     PC->SetIgnoreLookInput(true);
 
-    // Create weak pointers for capture safety
+    // create these weak pointers for capture safety
     TWeakObjectPtr<Afirst_Person_Character> WeakThis(this);
     TWeakObjectPtr<APlayerController> WeakPC(PC);
 
-    // Teleport after fade-out delay
+    // teleport after fade-out delay
     FTimerHandle TransitionTimerHandle;
     GetWorld()->GetTimerManager().SetTimer(TransitionTimerHandle, [WeakThis, TargetLocation, WeakPC, FadeDuration]()
         {
@@ -690,7 +689,7 @@ void Afirst_Person_Character::StartDoorTransition(const FVector& TargetLocation)
             }
         }, FadeDuration, false);
 
-    // Unfreeze input after the total transition time
+    // unfreeze input after the total transition time
     FTimerHandle InputUnfreezeHandle;
     GetWorld()->GetTimerManager().SetTimer(InputUnfreezeHandle, [WeakPC]()
         {

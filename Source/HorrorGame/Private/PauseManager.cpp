@@ -105,7 +105,6 @@ void APauseManager::ToggleQuitOptions()
 {
     if (PauseMenuWidget)
     {
-        // Cast to UHorizontalBox to access specific properties
         UHorizontalBox* QuitOptionsWidget = Cast<UHorizontalBox>(PauseMenuWidget->GetWidgetFromName(FName("QuitOptionsBox"))); // Use the correct name here
         if (QuitOptionsWidget)
         {
@@ -129,14 +128,14 @@ void APauseManager::ShowSettingsMenu()
     APlayerController* PC = UGameplayStatics::GetPlayerController(GetWorld(), 0);
     if (!PC || !SettingsMenuClass) return;
 
-    // Prevent recreating the widget if it already exists
+    // prevents recreating the widget if it already exists
     if (!SettingsMenuWidget)
     {
         SettingsMenuWidget = CreateWidget<UUserWidget>(PC, SettingsMenuClass);
 
         if (SettingsMenuWidget)
         {
-            // 1. Set PauseManagerRef (calls Blueprint's SetPauseManager)
+            // sets PauseManagerRef
             FName SetPauseManagerFn = FName("SetPauseManager");
             if (SettingsMenuWidget->GetClass()->FindFunctionByName(SetPauseManagerFn))
             {
@@ -149,7 +148,7 @@ void APauseManager::ShowSettingsMenu()
                 SettingsMenuWidget->ProcessEvent(SettingsMenuWidget->GetClass()->FindFunctionByName(SetPauseManagerFn), &Params);
             }
 
-            // 2. Set bIsInGameContext (calls Blueprint's SetInGameContext)
+            // sets bIsInGameContext
             FName SetInGameContextFn = FName("SetInGameContext");
             if (SettingsMenuWidget->GetClass()->FindFunctionByName(SetInGameContextFn))
             {
@@ -162,12 +161,12 @@ void APauseManager::ShowSettingsMenu()
                 SettingsMenuWidget->ProcessEvent(SettingsMenuWidget->GetClass()->FindFunctionByName(SetInGameContextFn), &Params);
             }
 
-            // 3. Add to viewport
+            // add to viewport
             SettingsMenuWidget->AddToViewport(200);
         }
     }
 
-    // Hide pause menu while settings is open
+    // hide pause menu while settings is open
     if (PauseMenuWidget)
     {
         PauseMenuWidget->SetVisibility(ESlateVisibility::Collapsed);

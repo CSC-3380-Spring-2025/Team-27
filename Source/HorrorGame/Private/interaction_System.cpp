@@ -205,7 +205,7 @@ void Ainteraction_System::WidgetPrompt(Afirst_Person_Character* Character, AActo
     if (Widget && Widget->GetName() == TEXT("NoteDisplayWidget")) return;
 
 
-    // If not found, fallback to actor-level widget component
+    // if its not found, fallback to actor-level widget component
     if (!Widget)
     {
         Widget = HitActor->FindComponentByClass<UWidgetComponent>();
@@ -214,7 +214,7 @@ void Ainteraction_System::WidgetPrompt(Afirst_Person_Character* Character, AActo
 
     if (!Widget) return;
 
-    // Update rotation to face camera
+    // update rotation to face camera
     FVector WidgetLocation = Widget->GetComponentLocation();
     FVector CameraLocation = Character->cam->GetComponentLocation();
     FRotator WidgetRotation = UKismetMathLibrary::FindLookAtRotation(WidgetLocation, CameraLocation);
@@ -234,7 +234,7 @@ void Ainteraction_System::Pickup_Object(Afirst_Person_Character* Character, AAct
     Character->Inventory.Add(Item);
     Character->InventoryTags.Add(Tag);
 
-    // Only auto-equip items that should be in the player's hand
+    // only auto-equip items that should be in the player's hand
     if (Tag == "PickupFlashlight" || Tag == "Room3Key" || Tag == "Room2Note" || Tag == "Loop1Key")
     {
         Character->CurrentItem = Item;
@@ -243,12 +243,12 @@ void Ainteraction_System::Pickup_Object(Afirst_Person_Character* Character, AAct
         UE_LOG(LogTemp, Log, TEXT("Equipped item: %s"), *Tag.ToString());
     }
 
-    // Handle flashlight pickup
+    // handles flashlight pickup
     if (Tag == "PickupFlashlight")
     {
         Character->bHasPickedUpFlashlight = true;
 
-        // If the battery was already picked up, give full charge
+        // if the battery was already picked up, give full charge
         if (Character->bHasPickedUpBattery)
         {
             Character->CurrentBattery = Character->MaxBattery;
@@ -263,19 +263,19 @@ void Ainteraction_System::Pickup_Object(Afirst_Person_Character* Character, AAct
         Character->UpdateBatteryUI();
     }
 
-    // Handle battery pickup
+    // handle battery pickup
     else if (Tag == "PickupBattery")
     {
         Character->bHasPickedUpBattery = true;
 
-        // If flashlight was already picked up, recharge to full
+        // if flashlight was already picked up, recharge to full
         if (Character->bHasPickedUpFlashlight && Character->CurrentBattery < Character->MaxBattery)
         {
             Character->CurrentBattery = Character->MaxBattery;
             UE_LOG(LogTemp, Log, TEXT("Battery picked up. Flashlight fully recharged to %d bars."), Character->CurrentBattery);
             Character->UpdateBatteryUI();
 
-            // Refresh flashlight if equipped
+            // refresh flashlight if equipped
             if (Character->CurrentItemTag == "PickupFlashlight")
             {
                 Character->Flashlight->SetVisibility(Character->bFlashlightOn);
@@ -287,7 +287,7 @@ void Ainteraction_System::Pickup_Object(Afirst_Person_Character* Character, AAct
         }
     }
 
-    // Update save data in GameInstance
+    // update save data in GameInstance
     if (UHorrorGameInstance* GI = Cast<UHorrorGameInstance>(UGameplayStatics::GetGameInstance(Character)))
     {
         int32 CurrentLoop = GI->GetLoopIndex();
@@ -305,7 +305,7 @@ void Ainteraction_System::Pickup_Object(Afirst_Person_Character* Character, AAct
     }
 
     HitActor->Destroy();
-    Character->AutoTurnOffFlashlight(); // In case the item just picked up is not the flashlight
+    Character->AutoTurnOffFlashlight(); // in case the item just picked up is not the flashlight
 }
 
 void Ainteraction_System::TeleportUsingDataTable(Afirst_Person_Character* Character, AActor* HitActor)
@@ -516,7 +516,7 @@ void Ainteraction_System::UseKeypad(Afirst_Person_Character* Character, AActor* 
     UUserWidget* KeypadWidget = CreateWidget<UUserWidget>(PC, KeypadClass);
     if (!KeypadWidget) return;
 
-    // Only set the InteractionSystem reference
+    // only sets the InteractionSystem reference
     static const FName FuncName2("SetInteractionSystem");
     if (UFunction* Func2 = KeypadWidget->GetClass()->FindFunctionByName(FuncName2))
     {
@@ -525,7 +525,7 @@ void Ainteraction_System::UseKeypad(Afirst_Person_Character* Character, AActor* 
         Params2.System = this;
         KeypadWidget->ProcessEvent(Func2, &Params2);
     }
-    // Also set the target drawer actor
+    // also sets the target drawer actor
     static const FName FuncName("SetTargetDrawer");
     if (UFunction* Func = KeypadWidget->GetClass()->FindFunctionByName(FuncName))
     {

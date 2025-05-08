@@ -60,13 +60,13 @@ void APuzzleActorBase::BeginPlay()
 
 bool APuzzleActorBase::CanInteract() const
 {
-    // Special handling for Room3Drawer
+    // special handling for Room3Drawer
     if (PuzzleTag == "Room3Drawer")
     {
-        return bIsUnlocked; // Return true after the keypad unlocks it
+        return bIsUnlocked; // returns true after the keypad unlocks it
     }
 
-    // Original logic for other items
+    // original logic for other items
     if (PuzzleTag == "PickupFlashlight" || PuzzleTag == "PickupBattery" ||
         PuzzleTag == "Room3Key" || PuzzleTag == "Room2Note")
         return true;

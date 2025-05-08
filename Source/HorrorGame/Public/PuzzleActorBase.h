@@ -20,7 +20,7 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Puzzle")
     FName PuzzleTag = NAME_None;
 
-    // Keypad Puzzle Functionality
+    // KEYPAD PUZZLE FUNCTIONALITY
 
     UFUNCTION(BlueprintCallable, Category = "Puzzle")
     virtual bool CanInteract() const;

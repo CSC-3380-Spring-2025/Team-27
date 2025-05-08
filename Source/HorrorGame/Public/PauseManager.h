@@ -13,7 +13,7 @@ class HORRORGAME_API APauseManager : public AActor
 	GENERATED_BODY()
 
 public:
-	// Sets default values for this actor's properties
+	// this sets default values for this actor's properties
 	APauseManager();
 
 	TSubclassOf<UUserWidget> GetPauseMenuClass() const { return PauseMenuClass; }
