@@ -10,6 +10,7 @@
 #include "Components/SpotLightComponent.h"
 #include "Blueprint/UserWidget.h"
 #include "PauseManager.h"
+#include "CharacterAudioComponent.h"
 #include "interaction_System.h"
 #include "first_Person_Character.generated.h"
 
@@ -30,6 +31,7 @@ protected:
 public:
     virtual void Tick(float DeltaTime) override;
     virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
+    void InitializeGraphicsSettings();
 
     void StartDoorTransition(const FVector& TargetLocation);
    
@@ -44,6 +46,13 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera")
     UCameraComponent* cam;
 
+    // AUDIO FEATURES
+    UPROPERTY()
+    UCharacterAudioComponent* AudioComponent;
+
+    UFUNCTION()
+    void PlayFootstep();
+
     //BASIC INTERACTION FEATURE
     UPROPERTY(EditAnywhere, Category = "Interaction")
     float InteractionDistance = 200.0f;
@@ -57,6 +66,9 @@ public:
     // FLASHLIGHT FEATURE
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
     class USpotLightComponent* Flashlight;
+
+    UPROPERTY(BlueprintReadWrite)
+    bool bHasPickedUpBattery = false;
 
     UPROPERTY(BlueprintReadWrite)
     bool bHasPickedUpFlashlight = false;
@@ -83,18 +95,16 @@ public:
 
     UPROPERTY()
     TArray<FName> InventoryTags;
-
-    UPROPERTY()
-    FVector StoredItemScale;
     
     FName CurrentItemTag = NAME_None;
     TSubclassOf<AActor> CurrentItem = nullptr;
     int32 CurrentIndex = 0;
 
+    // RESET INVENTORY WHEN LOOP/START NEW GAME
+    UFUNCTION()
+    void ResetInventory();
     void ToggleFlashlight();
     void AutoTurnOffFlashlight();
-    void DropCurrentItem();
-    void RemoveItemFromInventory();
     void ScrollInventory(float Value);
 
 private:
@@ -110,6 +120,24 @@ private:
 
     UPROPERTY(EditAnywhere, Category = "Camera")
     float FOVTransitionSpeed;
+
+    UPROPERTY(EditAnywhere, Category = "Camera")
+    float FOVTransitionSpeedRecover = 1.0f;
+
+    // AUDIO FEATURE
+    UPROPERTY(EditAnywhere, Category = "Audio")
+    float FootstepTraceDistance = 100.f;
+
+    UPROPERTY(EditAnywhere, Category = "Audio")
+    float WalkFootstepInterval = 0.6f;
+
+    UPROPERTY(EditAnywhere, Category = "Audio")
+    float SprintFootstepInterval = 0.45f;
+
+    UPROPERTY(EditAnywhere, Category = "Audio")
+    float CrouchFootstepInterval = 0.9f;
+
+    FTimerHandle FootstepTimerHandle;
 
     // CROSSHAIR UI
     UPROPERTY(EditAnywhere, Category = "UI")
@@ -200,7 +228,11 @@ private:
     void Vertic_Move(float value);
     void Horizon_Rot(float value);
     void Vertic_Rot(float value);
-    void UpdateMovementSpeed();
+
+    // MOVEMENT TRANSITIONS
+    float TargetMoveSpeed = 0.0f;
+    float CurrentMoveSpeed = 0.0f;
+    float MovementInterpSpeed = 5.0f; // smaller = smoother transition
     float GetTargetFOV() const;
 
     // CROUCH FUNCTION/VARIABLE DECLARATIONS

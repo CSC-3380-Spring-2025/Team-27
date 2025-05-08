@@ -34,6 +34,25 @@ public:
     UPROPERTY()
     bool bHasPickedUpFlashlight = false;
 
+    // INVENTORY SAVE
+    UPROPERTY()
+    TArray<TSubclassOf<AActor>> SavedInventory;
+
+    UPROPERTY()
+    TArray<FName> SavedInventoryTags;
+
+    UPROPERTY()
+    int32 SavedCurrentIndex;
+
+    UPROPERTY()
+    FName SavedCurrentItemTag;
+
+    UPROPERTY()
+    TSubclassOf<AActor> SavedCurrentItem;
+
+    UPROPERTY()
+    FVector SavedItemScale;
+
     UPROPERTY()
     bool bLoop1Complete;
 

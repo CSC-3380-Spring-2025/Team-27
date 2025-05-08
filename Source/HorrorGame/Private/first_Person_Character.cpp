@@ -4,6 +4,7 @@
 #include "Blueprint/UserWidget.h"
 #include "interaction_System.h"
 #include "GameFramework/GameUserSettings.h"
+#include "PhysicalMaterials/PhysicalMaterial.h"
 #include "Kismet/GameplayStatics.h"
 #include "HorrorGameInstance.h"
 #include "GameFramework/GameModeBase.h"
@@ -11,21 +12,8 @@
 #include "Camera/PlayerCameraManager.h"
 #include "Components/PostProcessComponent.h"
 #include "Components/CapsuleComponent.h"
+#include "DrawDebugHelpers.h"
 
-
-/*
-    add this wherever a puzzle is triggered/completed (pickup, note, switch, etc)
-
- * Example: when a puzzle is completed in this class
-    
-    UHorrorGameInstance* GI = Cast<UHorrorGameInstance>(UGameplayStatics::GetGameInstance(this));
-    if (GI && GI->GetLoopIndex() == 1)
-    {
-        GI->bLoop1Complete = true;
-        UE_LOG(LogTemp, Log, TEXT("Puzzle for Loop 1 completed!"));
-    }
-
-*/
 
 Afirst_Person_Character::Afirst_Person_Character()
 {
@@ -38,6 +26,9 @@ Afirst_Person_Character::Afirst_Person_Character()
     cam = CreateDefaultSubobject<UCameraComponent>(TEXT("Camera"));
     cam->SetupAttachment(RootComponent);
     cam->SetRelativeLocation(FVector(0, 0, 40));
+
+    // audio component
+    AudioComponent = CreateDefaultSubobject<UCharacterAudioComponent>(TEXT("AudioComponent"));
 
     //post process component
     PostProcessComponent = CreateDefaultSubobject<UPostProcessComponent>(TEXT("PostProcessComponent"));
@@ -91,7 +82,8 @@ Afirst_Person_Character::Afirst_Person_Character()
     DefaultFOV = 90.0f;
     SprintingFOV = 100.0f;
     CrouchFOV = 85.0f;
-    FOVTransitionSpeed = 2.0f;
+    FOVTransitionSpeed = 1.0f;
+    FOVTransitionSpeedRecover = 0.5f;
 
     if (cam)
     {
@@ -107,20 +99,32 @@ void Afirst_Person_Character::BeginPlay()
 {
     Super::BeginPlay();
 
-    CurrentCapsuleHeight = StandingCapsuleHalfHeight;
-    GetCapsuleComponent()->SetCapsuleHalfHeight(CurrentCapsuleHeight);
-    UpdateMovementSpeed();
-
-    //Spawn an instance of the interaction system class
-    Interaction_System = GetWorld()->SpawnActor<Ainteraction_System>(Ainteraction_System::StaticClass(), FVector::ZeroVector, FRotator::ZeroRotator);
-
-    // apply user settings on game start
-    if (GEngine && GEngine->GetGameUserSettings())
+    // load game instance
+    UHorrorGameInstance* GameInstance = Cast<UHorrorGameInstance>(UGameplayStatics::GetGameInstance(this));
+    if (GameInstance)
     {
-        GEngine->GetGameUserSettings()->ApplySettings(false); // false = dont restart settings, keep them throughout
+        int32 Loop = GameInstance->GetLoopIndex();
+        UE_LOG(LogTemp, Warning, TEXT("Current Loop: %d"), Loop);
+
+        // Only apply default battery if not loading from save
+        if (!UGameplayStatics::DoesSaveGameExist(TEXT("HorrorSaveSlot"), 0))
+        {
+            CurrentBattery = 2;
+        }
     }
 
-    //add crosshair widget to viewpoint
+    CurrentCapsuleHeight = StandingCapsuleHalfHeight;
+    GetCapsuleComponent()->SetCapsuleHalfHeight(CurrentCapsuleHeight);
+    CurrentMoveSpeed = DefaultMaxWalkingSpeed;
+    TargetMoveSpeed = DefaultMaxWalkingSpeed;
+    GetCharacterMovement()->MaxWalkSpeed = CurrentMoveSpeed;
+
+    // spawn interaction system
+    Interaction_System = GetWorld()->SpawnActor<Ainteraction_System>(Ainteraction_System::StaticClass(), FVector::ZeroVector, FRotator::ZeroRotator);
+
+    InitializeGraphicsSettings();
+
+    // add crosshair
     if (WB_CrosshairClass)
     {
         CrosshairWidget = CreateWidget<UUserWidget>(GetWorld()->GetFirstPlayerController(), WB_CrosshairClass);
@@ -128,35 +132,23 @@ void Afirst_Person_Character::BeginPlay()
         {
             CrosshairWidget->AddToViewport(1);
         }
-    }  
+    }
 
+    // add battery widget and hide initially
     if (BatteryWidgetClass)
     {
         BatteryWidget = CreateWidget<UUserWidget>(GetWorld()->GetFirstPlayerController(), BatteryWidgetClass);
         if (BatteryWidget)
         {
             BatteryWidget->AddToViewport();
-            BatteryWidget->SetVisibility(ESlateVisibility::Hidden); // hides it initially
+            BatteryWidget->SetVisibility(ESlateVisibility::Hidden);
         }
     }
 
-    // NEW LOOP INIT LOGIC
-    UHorrorGameInstance* GameInstance = Cast<UHorrorGameInstance>(UGameplayStatics::GetGameInstance(this));
-    if (GameInstance)
-    {
-        int32 Loop = GameInstance->GetLoopIndex();
-        UE_LOG(LogTemp, Warning, TEXT("Current Loop: %d"), Loop);
-
-        // TODO: Add visual/audio changes based on the loop number
-        // if (Loop == 2) { Make hallway darker, flicker lights, etc. }
-    }
-
-    // spawn the Blueprint version of the pause manager
+    // spawn PauseManager
     FActorSpawnParameters SpawnParams;
     SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-
-    // use LoadClass to find the blueprint class
-    UClass* PauseManagerBP = LoadClass<APauseManager>(nullptr, TEXT("/Game/Blueprints/BP_PauseManager.BP_PauseManager_C"));
+    UClass* PauseManagerBP = LoadClass<APauseManager>(nullptr, TEXT("/Game/UserInterface/BP_PauseManager.BP_PauseManager_C"));
     PauseManager = PauseManagerBP ? GetWorld()->SpawnActor<APauseManager>(PauseManagerBP, FVector::ZeroVector, FRotator::ZeroRotator, SpawnParams) : nullptr;
 
     // load interaction data table
@@ -170,25 +162,30 @@ void Afirst_Person_Character::BeginPlay()
     {
         UE_LOG(LogTemp, Error, TEXT("Failed to load or assign Interaction Data Table!"));
     }
+
+    // Fade from main menu logic
     APlayerController* PC = Cast<APlayerController>(GetController());
     if (PC && PC->PlayerCameraManager)
     {
         FString OptionValue = UGameplayStatics::ParseOption(UGameplayStatics::GetGameMode(this)->OptionsString, TEXT("FadeFromMainMenu"));
+
         if (OptionValue.Equals("true", ESearchCase::IgnoreCase))
         {
-            // start fully black
             PC->PlayerCameraManager->StartCameraFade(1.f, 1.f, 0.f, FLinearColor::Black, true, true);
 
-            // fade out from black after slight delay
+            TWeakObjectPtr<APlayerController> WeakPC(PC);
             FTimerHandle FadeInHandle;
-            GetWorld()->GetTimerManager().SetTimer(FadeInHandle, [PC]()
+            GetWorld()->GetTimerManager().SetTimer(FadeInHandle, [WeakPC]()
                 {
-                    PC->PlayerCameraManager->StartCameraFade(1.f, 0.f, 1.0f, FLinearColor::Black, false, true);
-                }, 0.1f, false); // change this so user waits 2 seconds on a black screen 
-            UHorrorGameInstance* GI = Cast<UHorrorGameInstance>(UGameplayStatics::GetGameInstance(this));
-            if (GI)
+                    if (WeakPC.IsValid() && WeakPC->PlayerCameraManager)
+                    {
+                        WeakPC->PlayerCameraManager->StartCameraFade(1.f, 0.f, 1.0f, FLinearColor::Black, false, true);
+                    }
+                }, 0.1f, false);
+
+            if (GameInstance)
             {
-                GI->LoadGameProgress(); // this will auto-apply location + flags
+                GameInstance->LoadGameProgress();
             }
         }
     }
@@ -197,6 +194,48 @@ void Afirst_Person_Character::BeginPlay()
 void Afirst_Person_Character::Tick(float DeltaTime)
 {
     Super::Tick(DeltaTime);
+
+    float Speed = GetVelocity().Size();
+    bool bIsMoving = Speed > 10.0f;
+
+    float Interval = WalkFootstepInterval;
+    if (bIsSprinting) Interval = SprintFootstepInterval;
+    else if (bWantsToCrouch) Interval = CrouchFootstepInterval;
+
+    static float PreviousInterval = -1.0f;
+
+    // smoothed out the audio transition between walking, sprinting, and crouching
+    if (bIsMoving)
+    {
+        float NewInterval = WalkFootstepInterval;
+        if (bIsSprinting) NewInterval = SprintFootstepInterval;
+        else if (bWantsToCrouch) NewInterval = CrouchFootstepInterval;
+
+        if (!GetWorld()->GetTimerManager().IsTimerActive(FootstepTimerHandle) || !FMath::IsNearlyEqual(NewInterval, PreviousInterval, 0.01f))
+        {
+            // if timer isn't running or interval changed, reset the timer
+            GetWorld()->GetTimerManager().ClearTimer(FootstepTimerHandle);
+            GetWorld()->GetTimerManager().SetTimer(FootstepTimerHandle, this, &Afirst_Person_Character::PlayFootstep, NewInterval, true);
+            PreviousInterval = NewInterval;
+        }
+    }
+    else
+    {
+        GetWorld()->GetTimerManager().ClearTimer(FootstepTimerHandle);
+        PreviousInterval = -1.0f;
+    }
+
+    // update target speed based on movement state
+    if (bWantsToCrouch)
+        TargetMoveSpeed = DefaultMaxWalkingSpeed * 0.5f;
+    else if (bIsSprinting && !bIsExhausted)
+        TargetMoveSpeed = DefaultMaxWalkingSpeed * SprintSpeedMultiplier;
+    else
+        TargetMoveSpeed = DefaultMaxWalkingSpeed;
+
+    // smooth interpolate actual move speed
+    CurrentMoveSpeed = FMath::FInterpTo(CurrentMoveSpeed, TargetMoveSpeed, DeltaTime, MovementInterpSpeed);
+    GetCharacterMovement()->MaxWalkSpeed = CurrentMoveSpeed;
 
     // adjust FOV based on movement state
     if (bIsSprinting && !bWantsToCrouch && !bIsExhausted)
@@ -232,6 +271,12 @@ void Afirst_Person_Character::Tick(float DeltaTime)
         VFXTransitionSpeed = 2.0f;
     }
 
+    float InterpSpeed = FOVTransitionSpeed;
+    if (bIsExhausted && !bIsSprinting)
+    {
+        InterpSpeed = FOVTransitionSpeedRecover;  // even slower when exhausted
+    }
+
     // smooth transition to target FOV
     float NewFOV = FMath::FInterpTo(cam->FieldOfView, GetTargetFOV(), DeltaTime, FOVTransitionSpeed);
     cam->SetFieldOfView(NewFOV);
@@ -253,7 +298,7 @@ void Afirst_Person_Character::Tick(float DeltaTime)
         BatteryDrainTimer += DeltaTime;
 
         // Drain every 5 seconds (adjust interval here)
-        if (BatteryDrainTimer >= 5.0f)
+        if (BatteryDrainTimer >= 8.0f)
         {
             BatteryDrainTimer = 0.f;
 
@@ -276,6 +321,20 @@ void Afirst_Person_Character::Tick(float DeltaTime)
     }
 }
 
+void Afirst_Person_Character::InitializeGraphicsSettings()
+{
+    if (GEngine && GEngine->GetGameUserSettings())
+    {
+        UGameUserSettings* Settings = GEngine->GetGameUserSettings();
+
+        // this loads previous saved settings
+        Settings->LoadSettings();
+
+        // this applies settings without restarting the engine
+        Settings->ApplySettings(false);
+    }
+}
+
 float Afirst_Person_Character::GetTargetFOV() const
 {
     if (bIsSprinting && !bWantsToCrouch && !bIsExhausted)
@@ -283,16 +342,6 @@ float Afirst_Person_Character::GetTargetFOV() const
     if (bWantsToCrouch)
         return CrouchFOV;
     return DefaultFOV;
-}
-
-void Afirst_Person_Character::UpdateMovementSpeed()
-{
-    if (bWantsToCrouch)
-        GetCharacterMovement()->MaxWalkSpeed = DefaultMaxWalkingSpeed * 0.5f;
-    else if (bIsSprinting)
-        GetCharacterMovement()->MaxWalkSpeed = DefaultMaxWalkingSpeed * SprintSpeedMultiplier;
-    else
-        GetCharacterMovement()->MaxWalkSpeed = DefaultMaxWalkingSpeed;
 }
 
 void Afirst_Person_Character::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
@@ -318,7 +367,6 @@ void Afirst_Person_Character::SetupPlayerInputComponent(UInputComponent* PlayerI
 
     // FLASHLIGHT INPUT (f)
     PlayerInputComponent->BindAction("ToggleFlashlight", IE_Pressed, this, &Afirst_Person_Character::ToggleFlashlight);
-    PlayerInputComponent->BindAction("DropItem", IE_Pressed, this, &Afirst_Person_Character::DropCurrentItem);
     PlayerInputComponent->BindAxis("ScrollInventory", this, &Afirst_Person_Character::ScrollInventory);
 
     // PAUSE MENU INPUT (Escape)
@@ -345,30 +393,38 @@ void Afirst_Person_Character::ToggleFlashlight()
 {
     if (CurrentItemTag == "PickupFlashlight")
     {
+        bool bWasFlashlightOn = bFlashlightOn;
+
+        // only allow toggle if there's battery
         if (CurrentBattery > 0)
         {
             bFlashlightOn = !bFlashlightOn;
         }
-       
+
+        // force flashlight off if battery hits zero
+        if (CurrentBattery <= 0)
+        {
+            bFlashlightOn = false;
+        }
+
+        // Update visibility
         Flashlight->SetVisibility(bFlashlightOn);
 
+        // Update UI
         if (BatteryWidget)
         {
             BatteryWidget->SetVisibility(bFlashlightOn ? ESlateVisibility::Visible : ESlateVisibility::Hidden);
         }
 
-        if (CurrentBattery <= 0)
+        // play toggle sound (only if state changed)
+        if (bFlashlightOn != bWasFlashlightOn && AudioComponent)
         {
-            bFlashlightOn = false;
-            Flashlight->SetVisibility(false);
-            if (BatteryWidget)
-            {
-                BatteryWidget->SetVisibility(ESlateVisibility::Hidden);
-            }
+            AudioComponent->PlayFlashlightToggleSound(bFlashlightOn, GetActorLocation());
         }
+
+        // always updates battery UI
         UpdateBatteryUI();
     }
-
 }
 
 void Afirst_Person_Character::AutoTurnOffFlashlight()
@@ -388,26 +444,6 @@ void Afirst_Person_Character::AutoTurnOffFlashlight()
     }
 }
 
-void Afirst_Person_Character::RemoveItemFromInventory()
-{
-    Inventory.RemoveAt(CurrentIndex);
-    InventoryTags.RemoveAt(CurrentIndex);
-
-    if (Inventory.Num() > 0)
-    {
-        CurrentIndex = CurrentIndex % Inventory.Num();
-        CurrentItem = Inventory[CurrentIndex];
-        CurrentItemTag = InventoryTags[CurrentIndex];
-    }
-    else
-    {
-        CurrentIndex = 0;
-        CurrentItem = nullptr;
-        CurrentItemTag = NAME_None;
-    }
-}
-
-
 void Afirst_Person_Character::UpdateBatteryUI()
 {
     if (BatteryWidget)
@@ -425,25 +461,6 @@ void Afirst_Person_Character::UpdateBatteryUI()
 
             BatteryWidget->ProcessEvent(UpdateFunc, &Params);
         }
-    }
-}
-
-void Afirst_Person_Character::DropCurrentItem()
-{
-    if (!CurrentItem) return;
-
-    FVector SpawnLocation = GetActorLocation() + GetActorForwardVector() * 150.f;
-    FRotator SpawnRotation = GetActorRotation();
-
-    UWorld* World = GetWorld();
-    if (World)
-    {
-        FActorSpawnParameters SpawnParams;
-        AActor* SpawnedActor = World->SpawnActor<AActor>(CurrentItem, SpawnLocation, SpawnRotation, SpawnParams);
-        SpawnedActor->SetActorScale3D(StoredItemScale);
-
-        RemoveItemFromInventory();
-        AutoTurnOffFlashlight();
     }
 }
 
@@ -509,50 +526,53 @@ void Afirst_Person_Character::StopSprint()
     }
 }
 
-void Afirst_Person_Character::ApplyHeadBobbing(float DeltaTime) //Head-Bobbing function
+void Afirst_Person_Character::ApplyHeadBobbing(float DeltaTime)
 {
     if (!bEnableHeadBobbing || !cam) return;
 
     float Speed = GetVelocity().Size();
     float TargetBobbingFactor = 0.0f;
+    float TargetBobbingSpeed = 0.0f;
+    float TargetBobbingAmount = 0.0f;
 
-    // Determine target factor based on state
-    if (bIsSprinting)
+    if (bIsSprinting) // sprinting
     {
-        TargetBobbingFactor = 1.5f; // intense sprint bob
+        TargetBobbingFactor = 1.0f;
+        TargetBobbingSpeed = 14.0f;       // faster oscillation
+        TargetBobbingAmount = 2.5f;       // stronger bob
     }
-    else if (Speed > 10.0f)
+    else if (bWantsToCrouch) // crouching
     {
-        TargetBobbingFactor = 0.5f; // subtle walking bob
+        TargetBobbingFactor = 0.6f;
+        TargetBobbingSpeed = 6.0f;        // slower bob
+        TargetBobbingAmount = 1.0f;       // subtle crouch bob
     }
-    else
+    else if (Speed > 10.0f) // walking
     {
-        TargetBobbingFactor = 0.0f; // idle
+        TargetBobbingFactor = 0.8f;
+        TargetBobbingSpeed = 10.0f;       // balanced walk speed
+        TargetBobbingAmount = 2.0f;
     }
 
-    // Smooth interpolation
-    CurrentBobbingFactor = FMath::FInterpTo(CurrentBobbingFactor, TargetBobbingFactor, DeltaTime, 5.0f); // tweak 5.0f as smoothing speed
+    // smooth transitions between movement states
+    CurrentBobbingFactor = FMath::FInterpTo(CurrentBobbingFactor, TargetBobbingFactor, DeltaTime, 6.0f);
+    BobbingSpeed = FMath::FInterpTo(BobbingSpeed, TargetBobbingSpeed, DeltaTime, 6.0f);
+    BobbingAmount = FMath::FInterpTo(BobbingAmount, TargetBobbingAmount, DeltaTime, 6.0f);
 
     if (Speed > 10.0f)
     {
         BobbingTime += DeltaTime * BobbingSpeed;
         float BobbingOffset = FMath::Sin(BobbingTime) * BobbingAmount * CurrentBobbingFactor;
 
-        //reduce bob when crouching
-        if (bWantsToCrouch)
-        {
-            BobbingOffset *= CrouchBobbingMultiplier;
-        }
-
         FVector NewCameraPosition = DefaultCameraPosition;
-        NewCameraPosition.Z = CrouchCameraBaseZ + BobbingOffset; //apply bob effect
+        NewCameraPosition.Z = CrouchCameraBaseZ + BobbingOffset;
 
         cam->SetRelativeLocation(NewCameraPosition);
     }
     else
     {
-        //reset cam position when standing still
-        cam->SetRelativeLocation(FMath::VInterpTo(cam->GetRelativeLocation(), FVector(DefaultCameraPosition.X, DefaultCameraPosition.Y, CrouchCameraBaseZ), DeltaTime, 5.0f));
+        // reset when standing still
+        cam->SetRelativeLocation(FMath::VInterpTo(cam->GetRelativeLocation(), FVector(DefaultCameraPosition.X, DefaultCameraPosition.Y, CrouchCameraBaseZ), DeltaTime, 6.0f));
         BobbingTime = 0.0f;
     }
 }
@@ -560,6 +580,20 @@ void Afirst_Person_Character::ApplyHeadBobbing(float DeltaTime) //Head-Bobbing f
 void Afirst_Person_Character::ApplyStaminaExhaustionEffects()
 {
     TargetVignetteIntensity = 1.0f;
+
+    if (PostProcessComponent)
+    {
+        auto& Settings = PostProcessComponent->Settings;
+
+        Settings.bOverride_ColorSaturation = true;
+        Settings.ColorSaturation = FVector(0.75f); // grayscale look
+
+        Settings.bOverride_SceneFringeIntensity = true;
+        Settings.SceneFringeIntensity = 4.0f; // chromatic aberration
+
+        Settings.bOverride_DepthOfFieldFstop = true;
+        Settings.DepthOfFieldFstop = 0.5f;
+    }
 }
 
 void Afirst_Person_Character::ResetExhaustion()
@@ -666,4 +700,79 @@ void Afirst_Person_Character::StartDoorTransition(const FVector& TargetLocation)
                 WeakPC->SetIgnoreLookInput(false);
             }
         }, TotalTransitionTime, false);
+}
+
+void Afirst_Person_Character::PlayFootstep()
+{
+    // make sure playing is on ground (wood or tile)
+    if (!GetCharacterMovement() || !GetCharacterMovement()->IsMovingOnGround())
+        return;
+
+    // capsule height for offsetting the trace start
+    float HalfHeight = GetCapsuleComponent()->GetScaledCapsuleHalfHeight();
+    FVector Start = GetActorLocation() - FVector(0, 0, HalfHeight - 1.f);
+    FVector End = Start - FVector(0, 0, FootstepTraceDistance); // how far down we trace
+
+    // setup hit result and trace params
+    FHitResult Hit;
+    FCollisionQueryParams Params(FName("FootstepTrace"), false, this);
+    Params.bReturnPhysicalMaterial = true;
+
+    if (GetWorld()->LineTraceSingleByChannel(Hit, Start, End, ECC_Visibility, Params))
+    {
+        UPhysicalMaterial* PhysMat = Hit.PhysMaterial.Get();
+        EPhysicalSurface SurfaceType = UPhysicalMaterial::DetermineSurfaceType(PhysMat);
+
+        float Speed = GetVelocity().Size();
+        const float WalkSpeed = DefaultMaxWalkingSpeed;
+        const float SprintSpeed = WalkSpeed * SprintSpeedMultiplier;
+        const float CrouchSpeed = WalkSpeed * 0.5f;
+
+        float Pitch;
+        if (Speed >= SprintSpeed * 0.95f)
+        {
+            Pitch = 1.25f; // sprinting
+        }
+        else if (Speed <= CrouchSpeed * 1.05f)
+        {
+            Pitch = 0.85f; // crouching
+        }
+        else
+        {
+            Pitch = 1.0f; // walking
+        }
+
+        // added slight variation for realism
+        Pitch += FMath::RandRange(-0.05f, 0.05f);
+
+        // Play the footstep
+        if (AudioComponent)
+        {
+            AudioComponent->PlayFootstep(SurfaceType, Hit.ImpactPoint, Pitch);
+        }
+
+        UE_LOG(LogTemp, Log, TEXT("[Footstep] Hit surface: %d | Material: %s | Actor: %s"),
+            (int32)SurfaceType,
+            PhysMat ? *PhysMat->GetName() : TEXT("None"),
+            Hit.GetActor() ? *Hit.GetActor()->GetName() : TEXT("None"));
+    }
+    else
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[Footstep] Line trace missed."));
+    }
+}
+
+void Afirst_Person_Character::ResetInventory()
+{
+    Inventory.Empty();
+    InventoryTags.Empty();
+    CurrentItem = nullptr;
+    CurrentItemTag = NAME_None;
+    CurrentIndex = 0;
+    bHasPickedUpFlashlight = false;
+    CurrentBattery = 0;
+    AutoTurnOffFlashlight();
+    UpdateBatteryUI();
+
+    UE_LOG(LogTemp, Warning, TEXT("Inventory reset due to loop transition or new game."));
 }
