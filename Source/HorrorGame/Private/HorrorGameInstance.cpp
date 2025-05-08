@@ -26,6 +26,7 @@ void UHorrorGameInstance::SaveGameProgress()
         return;
     }
 
+    // SAVE PLAYER LOCATION, INV, ROTATION
     SaveGameInstance->PlayerLocation = Character->GetActorLocation();
     SaveGameInstance->PlayerRotation = Character->GetActorRotation();
     SaveGameInstance->SavedLoopIndex = CurrentLoopIndex;
@@ -33,14 +34,14 @@ void UHorrorGameInstance::SaveGameProgress()
     SaveGameInstance->SavedBatteryLevel = Character->CurrentBattery;
     SaveGameInstance->bHasPickedUpFlashlight = Character->bHasPickedUpFlashlight;
 
-    // Save inventory
+    // SAVE INVENTORY
     SaveGameInstance->SavedInventory = Character->Inventory;
     SaveGameInstance->SavedInventoryTags = Character->InventoryTags;
     SaveGameInstance->SavedCurrentItem = Character->CurrentItem;
     SaveGameInstance->SavedCurrentItemTag = Character->CurrentItemTag;
     SaveGameInstance->SavedCurrentIndex = Character->CurrentIndex;
 
-    // Save puzzle flags
+    // SAVE PUZZLE FLAGS
     SaveGameInstance->bLoop1Complete = bLoop1Complete;
     SaveGameInstance->bLoop2Complete = bLoop2Complete;
     SaveGameInstance->bLoop3Complete = bLoop3Complete;
@@ -76,7 +77,7 @@ bool UHorrorGameInstance::LoadGameProgress()
         return false;
     }
 
-    // Restore basic game state
+    // RESTORE BASIC GAME STATE
     CurrentLoopIndex = LoadedGame->SavedLoopIndex;
     bLoop1Complete = LoadedGame->bLoop1Complete;
     bLoop2Complete = LoadedGame->bLoop2Complete;
@@ -92,7 +93,7 @@ bool UHorrorGameInstance::LoadGameProgress()
         bLoop2Complete ? TEXT("true") : TEXT("false"),
         bLoop3Complete ? TEXT("true") : TEXT("false"));
 
-    // Restore player state
+    // RESTORE PLAYER STATE
     APlayerController* PC = UGameplayStatics::GetPlayerController(GetWorld(), 0);
     if (PC)
     {

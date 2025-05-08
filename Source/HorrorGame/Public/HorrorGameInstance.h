@@ -7,6 +7,7 @@
 #include "HorrorGameInstance.generated.h"
 
 /**
+ * - carter:
  * Use this code in your puzzle logic to mark it as complete:
 	
 	UHorrorGameInstance* GI = Cast<UHorrorGameInstance>(UGameplayStatics::GetGameInstance(this));

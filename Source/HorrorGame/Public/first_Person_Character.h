@@ -245,8 +245,6 @@ private:
 
     Ainteraction_System* Interaction_System;
 
-    // void MarkCurrentLoopPuzzleComplete(); **optional helper for centralizing puzzle completion tracking**
-
     bool IsFullyCrouched() const
     {
         return FMath::IsNearlyEqual(CurrentCapsuleHeight, CrouchingCapsuleHalfHeight, 1.0f);
