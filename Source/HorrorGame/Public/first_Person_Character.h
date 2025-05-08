@@ -95,9 +95,6 @@ public:
 
     UPROPERTY()
     TArray<FName> InventoryTags;
-
-    UPROPERTY()
-    FVector StoredItemScale;
     
     FName CurrentItemTag = NAME_None;
     TSubclassOf<AActor> CurrentItem = nullptr;
@@ -106,11 +103,8 @@ public:
     // RESET INVENTORY WHEN LOOP/START NEW GAME
     UFUNCTION()
     void ResetInventory();
-
     void ToggleFlashlight();
     void AutoTurnOffFlashlight();
-    void DropCurrentItem();
-    void RemoveItemFromInventory();
     void ScrollInventory(float Value);
 
 private:
